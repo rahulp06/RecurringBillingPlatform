@@ -11,7 +11,7 @@ function Home() {
           Manage subscriptions, invoices and payments efficiently.
         </p>
 
-        <Link to="/">
+        <Link to="/signin">
           <button style={{ marginBottom: "15px" }}>Sign In</button>
         </Link>
 
