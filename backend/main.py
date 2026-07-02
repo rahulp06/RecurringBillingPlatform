@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 
-from app.database import Base, engine, get_db
-from app.models import (
+from backend.database import Base, engine, get_db
+from backend.models import (
     Plan,
     Customer,
     Subscription,
@@ -11,8 +11,8 @@ from app.models import (
     Payment,
     AuditLog,
 )
-from app.schemas import PlanCreate
-from app.crud import create_plan, get_plans
+from backend.schemas import PlanCreate
+from backend.crud import create_plan, get_plans
 
 app = FastAPI()
 
