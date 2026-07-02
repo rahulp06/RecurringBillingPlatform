@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
 )
 from .database import Base
+from datetime import datetime
 
 
 class Plan(Base):
@@ -35,10 +36,16 @@ class Subscription(Base):
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer)
     plan_id = Column(Integer)
-    status = Column(String)
+
+    status = Column(String, default="trial")
+
     start_date = Column(Date)
     end_date = Column(Date)
 
+    status_changed_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )
 
 class BillingCycle(Base):
     __tablename__ = "billing_cycles"
