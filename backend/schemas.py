@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-
+from pydantic import BaseModel,EmailStr
 
 class PlanBase(BaseModel):
     name: str
@@ -18,3 +17,19 @@ class PlanResponse(PlanBase):
 
     class Config:
         from_attributes = True
+
+class CustomerSignup(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    company_name: str
+
+
+class CustomerLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
