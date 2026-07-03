@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from backend.database import Base, engine, get_db
 from backend.models import (
     Plan,
@@ -13,7 +13,7 @@ from backend.models import (
 )
 from backend.schemas import PlanCreate, CustomerSignup, CustomerLogin, Token
 from backend.crud import create_plan, get_plans, get_customer_by_email, create_customer, authenticate_customer
-from backend.security import create_access_token
+from backend.security import create_access_token, decode_access_token
 
 app = FastAPI()
 
@@ -59,14 +59,14 @@ def signup(
 
 @app.post("/login", response_model=Token)
 def login(
-    customer: CustomerLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
 
     db_customer = authenticate_customer(
         db,
-        customer.email,
-        customer.password
+        form_data.username,   # username field contains the email
+        form_data.password
     )
 
     if not db_customer:
@@ -85,4 +85,48 @@ def login(
     return {
         "access_token": access_token,
         "token_type": "bearer"
+    }
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="login"
+)
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+
+    payload = decode_access_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    email = payload.get("sub")
+
+    customer = get_customer_by_email(
+        db,
+        email
+    )
+
+    if customer is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return customer
+
+@app.get("/me")
+def get_me(
+    current_user: Customer = Depends(get_current_user)
+):
+
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role
     }
