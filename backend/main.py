@@ -11,14 +11,80 @@ from backend.models import (
     Payment,
     AuditLog,
 )
-from backend.schemas import PlanCreate, CustomerSignup, CustomerLogin, Token
-from backend.crud import create_plan, get_plans, get_customer_by_email, create_customer, authenticate_customer
-from backend.security import create_access_token, decode_access_token
+from backend.schemas import (
+    PlanCreate, 
+    CustomerSignup, 
+    CustomerLogin, 
+    Token, 
+    CustomerUpdate
+)
+from backend.crud import (
+    create_plan,
+    get_plans, 
+    get_customer_by_email, 
+    create_customer, 
+    authenticate_customer,
+    get_plan,
+    update_plan,
+    delete_plan,
+    get_customers,
+    get_customer,
+    update_customer,
+    delete_customer
+)
+from backend.security import (
+    create_access_token, 
+    decode_access_token, 
+    hash_password, 
+    verify_password
+)
 
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="login"
+)
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+
+    payload = decode_access_token(token)
+
+    if payload is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    email = payload.get("sub")
+
+    customer = get_customer_by_email(
+        db,
+        email
+    )
+
+    if customer is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return customer
+
+def require_admin(
+    current_user: Customer = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required"
+        )
+
+    return current_user
 
 @app.get("/")
 def root():
@@ -26,7 +92,11 @@ def root():
 
 
 @app.post("/plans")
-def add_plan(plan: PlanCreate, db: Session = Depends(get_db)):
+def add_plan(
+    plan: PlanCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
     return create_plan(db, plan)
 
 
@@ -87,37 +157,6 @@ def login(
         "token_type": "bearer"
     }
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="login"
-)
-
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-):
-
-    payload = decode_access_token(token)
-
-    if payload is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
-        )
-
-    email = payload.get("sub")
-
-    customer = get_customer_by_email(
-        db,
-        email
-    )
-
-    if customer is None:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
-
-    return customer
 
 @app.get("/me")
 def get_me(
@@ -130,3 +169,127 @@ def get_me(
         "email": current_user.email,
         "role": current_user.role
     }
+
+@app.get("/plans/{plan_id}")
+def read_plan(
+    plan_id: int,
+    db: Session = Depends(get_db)
+):
+
+    plan = get_plan(db, plan_id)
+
+    if plan is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan not found"
+        )
+
+    return plan
+
+@app.put("/plans/{plan_id}")
+def edit_plan(
+    plan_id: int,
+    plan: PlanCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_plan(
+        db,
+        plan_id,
+        plan
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan not found"
+        )
+
+    return updated
+
+@app.delete("/plans/{plan_id}")
+def remove_plan(
+    plan_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_plan(
+        db,
+        plan_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Plan not found"
+        )
+
+    return deleted
+
+@app.get("/customers")
+def read_customers(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_customers(db)
+
+@app.get("/customers/{customer_id}")
+def read_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    customer = get_customer(db, customer_id)
+
+    if customer is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
+
+    return customer
+
+@app.put("/customers/{customer_id}")
+def edit_customer(
+    customer_id: int,
+    customer: CustomerUpdate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_customer(
+        db,
+        customer_id,
+        customer
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
+
+    return updated
+
+@app.delete("/customers/{customer_id}")
+def remove_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_customer(
+        db,
+        customer_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
+
+    return deleted

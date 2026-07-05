@@ -12,9 +12,16 @@ def create_plan(db: Session, plan: PlanCreate):
     db.refresh(db_plan)
     return db_plan
 
-
 def get_plans(db: Session):
     return db.query(Plan).all()
+
+
+def get_plan(db: Session, plan_id: int):
+    return (
+        db.query(Plan)
+        .filter(Plan.id == plan_id)
+        .first()
+    )
 
 def get_customer_by_email(db: Session, email: str):
     return (
@@ -63,3 +70,96 @@ def authenticate_customer(db: Session, email: str, password: str):
         return None
 
     return customer
+
+def update_plan(db: Session, plan_id: int, updated_plan):
+
+    plan = (
+        db.query(Plan)
+        .filter(Plan.id == plan_id)
+        .first()
+    )
+
+    if plan is None:
+        return None
+
+    plan.name = updated_plan.name
+    plan.price = updated_plan.price
+    plan.billing_interval = updated_plan.billing_interval
+    plan.trial_days = updated_plan.trial_days
+    plan.features = updated_plan.features
+
+    db.commit()
+    db.refresh(plan)
+
+    return plan
+
+def delete_plan(db: Session, plan_id: int):
+
+    plan = (
+        db.query(Plan)
+        .filter(Plan.id == plan_id)
+        .first()
+    )
+
+    if plan is None:
+        return None
+
+    db.delete(plan)
+    db.commit()
+
+    return {"message": "Plan deleted successfully"}
+
+def get_customers(db: Session):
+    return db.query(Customer).all()
+
+def get_customer(db: Session, customer_id: int):
+    return (
+        db.query(Customer)
+        .filter(Customer.id == customer_id)
+        .first()
+    )
+
+def update_customer(
+    db: Session,
+    customer_id: int,
+    updated_customer
+):
+
+    customer = (
+        db.query(Customer)
+        .filter(Customer.id == customer_id)
+        .first()
+    )
+
+    if customer is None:
+        return None
+
+    customer.name = updated_customer.name
+    customer.email = updated_customer.email
+    customer.company_name = updated_customer.company_name
+
+    db.commit()
+    db.refresh(customer)
+
+    return customer
+
+def delete_customer(
+    db: Session,
+    customer_id: int
+):
+
+    customer = (
+        db.query(Customer)
+        .filter(Customer.id == customer_id)
+        .first()
+    )
+
+    if customer is None:
+        return None
+
+    db.delete(customer)
+    db.commit()
+
+    return {
+        "message": "Customer deleted successfully"
+    }
