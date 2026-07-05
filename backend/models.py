@@ -7,7 +7,7 @@ from sqlalchemy import (
     DateTime,
 )
 from .database import Base
-from datetime import datetime
+from datetime import datetime,date
 
 
 class Plan(Base):
@@ -51,18 +51,19 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
 
     id = Column(Integer, primary_key=True, index=True)
-    customer_id = Column(Integer)
-    plan_id = Column(Integer)
+    customer_id = Column(Integer, nullable=False)
+    plan_id = Column(Integer,nullable=False)
 
-    status = Column(String, default="trial")
+    status = Column(String, default="trial", nullable=False)
 
-    start_date = Column(Date)
-    end_date = Column(Date)
+    start_date = Column(Date,nullable=False)
+    end_date = Column(Date,nullable=False)
 
     status_changed_at = Column(
         DateTime,
         default=datetime.utcnow
     )
+
 
 class BillingCycle(Base):
     __tablename__ = "billing_cycles"

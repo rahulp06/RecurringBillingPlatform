@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from .models import Plan
-from .schemas import PlanCreate
-from .models import Customer
+from .schemas import PlanCreate,SubscriptionCreate
+from .models import Customer, Subscription
 from .schemas import CustomerSignup
 from .security import hash_password,verify_password
 
@@ -162,4 +162,74 @@ def delete_customer(
 
     return {
         "message": "Customer deleted successfully"
+    }
+
+def create_subscription(db: Session, subscription: SubscriptionCreate):
+
+    db_subscription = Subscription(
+        **subscription.model_dump()
+    )
+
+    db.add(db_subscription)
+    db.commit()
+    db.refresh(db_subscription)
+
+    return db_subscription
+
+def get_subscriptions(db: Session):
+    return db.query(Subscription).all()
+
+def get_subscription(db: Session, subscription_id: int):
+
+    return (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+def update_subscription(
+    db: Session,
+    subscription_id: int,
+    updated_subscription
+):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+    if subscription is None:
+        return None
+
+    subscription.customer_id = updated_subscription.customer_id
+    subscription.plan_id = updated_subscription.plan_id
+    subscription.status = updated_subscription.status
+    subscription.start_date = updated_subscription.start_date
+    subscription.end_date = updated_subscription.end_date
+
+    db.commit()
+    db.refresh(subscription)
+
+    return subscription
+
+def delete_subscription(
+    db: Session,
+    subscription_id: int
+):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+    if subscription is None:
+        return None
+
+    db.delete(subscription)
+    db.commit()
+
+    return {
+        "message": "Subscription deleted successfully"
     }

@@ -16,7 +16,8 @@ from backend.schemas import (
     CustomerSignup, 
     CustomerLogin, 
     Token, 
-    CustomerUpdate
+    CustomerUpdate,
+    SubscriptionCreate
 )
 from backend.crud import (
     create_plan,
@@ -30,7 +31,12 @@ from backend.crud import (
     get_customers,
     get_customer,
     update_customer,
-    delete_customer
+    delete_customer,
+    create_subscription,
+    get_subscriptions,
+    get_subscription,
+    update_subscription,
+    delete_subscription
 )
 from backend.security import (
     create_access_token, 
@@ -290,6 +296,88 @@ def remove_customer(
         raise HTTPException(
             status_code=404,
             detail="Customer not found"
+        )
+
+    return deleted
+
+@app.post("/subscriptions")
+def add_subscription(
+    subscription: SubscriptionCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return create_subscription(
+        db,
+        subscription
+    )
+
+@app.get("/subscriptions")
+def read_subscriptions(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return get_subscriptions(db)
+
+@app.get("/subscriptions/{subscription_id}")
+def read_subscription(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    subscription = get_subscription(
+        db,
+        subscription_id
+    )
+
+    if subscription is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found"
+        )
+
+    return subscription
+
+@app.put("/subscriptions/{subscription_id}")
+def edit_subscription(
+    subscription_id: int,
+    subscription: SubscriptionCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_subscription(
+        db,
+        subscription_id,
+        subscription
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found"
+        )
+
+    return updated
+
+@app.delete("/subscriptions/{subscription_id}")
+def remove_subscription(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_subscription(
+        db,
+        subscription_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Subscription not found"
         )
 
     return deleted

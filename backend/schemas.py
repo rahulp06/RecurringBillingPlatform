@@ -1,4 +1,5 @@
 from pydantic import BaseModel,EmailStr
+from datetime import date
 
 class PlanBase(BaseModel):
     name: str
@@ -38,3 +39,21 @@ class CustomerUpdate(BaseModel):
     name: str
     email: EmailStr
     company_name: str
+
+class SubscriptionBase(BaseModel):
+    customer_id: int
+    plan_id: int
+    status: str
+    start_date: date
+    end_date: date
+
+
+class SubscriptionCreate(SubscriptionBase):
+    pass
+
+
+class SubscriptionResponse(SubscriptionBase):
+    id: int
+
+    class Config:
+        from_attributes = True
