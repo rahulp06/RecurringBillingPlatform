@@ -1,5 +1,9 @@
-from pydantic import BaseModel,EmailStr
-from datetime import date
+from pydantic import BaseModel, EmailStr
+from datetime import date, datetime
+
+# ==========================
+# PLAN
+# ==========================
 
 class PlanBase(BaseModel):
     name: str
@@ -19,6 +23,11 @@ class PlanResponse(PlanBase):
     class Config:
         from_attributes = True
 
+
+# ==========================
+# CUSTOMER
+# ==========================
+
 class CustomerSignup(BaseModel):
     name: str
     email: EmailStr
@@ -31,14 +40,24 @@ class CustomerLogin(BaseModel):
     password: str
 
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
 class CustomerUpdate(BaseModel):
     name: str
     email: EmailStr
     company_name: str
+
+
+# ==========================
+# TOKEN
+# ==========================
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+# ==========================
+# SUBSCRIPTION
+# ==========================
 
 class SubscriptionBase(BaseModel):
     customer_id: int
@@ -53,6 +72,108 @@ class SubscriptionCreate(SubscriptionBase):
 
 
 class SubscriptionResponse(SubscriptionBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# ==========================
+# BILLING CYCLE
+# ==========================
+
+class BillingCycleBase(BaseModel):
+    subscription_id: int
+    cycle_start_date: date
+    cycle_end_date: date
+    renewal_date: date
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class BillingCycleCreate(BillingCycleBase):
+    pass
+
+
+class BillingCycleResponse(BillingCycleBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# ==========================
+# INVOICE
+# ==========================
+
+class InvoiceBase(BaseModel):
+    invoice_number: str
+    subscription_id: int
+    customer_id: int
+    invoice_date: date
+    due_date: date
+    subtotal: float
+    tax_amount: float
+    total_amount: float
+    status: str
+
+
+class InvoiceCreate(InvoiceBase):
+    pass
+
+
+class InvoiceResponse(InvoiceBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# ==========================
+# PAYMENT
+# ==========================
+
+from datetime import datetime
+
+class PaymentBase(BaseModel):
+    invoice_id: int
+    payment_reference: str
+    amount: float
+    payment_method: str
+    status: str
+    payment_date: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaymentCreate(PaymentBase):
+    pass
+
+
+class PaymentResponse(PaymentBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+# ==========================
+# AUDIT LOG
+# ==========================
+
+class AuditLogBase(BaseModel):
+    entity_type: str
+    entity_id: int
+    action: str
+    old_value: str
+    new_value: str
+    performed_by: str
+    created_at: datetime
+
+
+class AuditLogCreate(AuditLogBase):
+    pass
+
+
+class AuditLogResponse(AuditLogBase):
     id: int
 
     class Config:

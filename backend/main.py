@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -18,7 +19,11 @@ from backend.schemas import (
     CustomerLogin, 
     Token, 
     CustomerUpdate,
-    SubscriptionCreate
+    SubscriptionCreate,
+    BillingCycleCreate,
+    InvoiceCreate,
+    PaymentCreate,
+    AuditLogCreate
 )
 from backend.crud import (
     create_plan,
@@ -37,7 +42,27 @@ from backend.crud import (
     get_subscriptions,
     get_subscription,
     update_subscription,
-    delete_subscription
+    delete_subscription,
+    create_billing_cycle,
+    get_billing_cycles,
+    get_billing_cycle,
+    update_billing_cycle,
+    delete_billing_cycle,
+    create_invoice,
+    get_invoices,
+    get_invoice,
+    update_invoice,
+    delete_invoice,
+    create_payment,
+    get_payments,
+    get_payment,
+    update_payment,
+    delete_payment,
+    create_audit_log,
+    get_audit_logs,
+    get_audit_log,
+    update_audit_log,
+    delete_audit_log
 )
 from backend.security import (
     create_access_token, 
@@ -103,9 +128,9 @@ def require_admin(
 
     return current_user
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
-    return {"message": "Recurring Billing Platform API"}
+    return RedirectResponse(url="/docs")
 
 
 @app.post("/plans")
@@ -389,6 +414,360 @@ def remove_subscription(
         raise HTTPException(
             status_code=404,
             detail="Subscription not found"
+        )
+
+    return deleted
+
+# ==========================================================
+# BILLING CYCLE CRUD
+# ==========================================================
+
+@app.post("/billing-cycles")
+def add_billing_cycle(
+    billing_cycle: BillingCycleCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return create_billing_cycle(
+        db,
+        billing_cycle
+    )
+
+
+@app.get("/billing-cycles")
+def read_billing_cycles(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return get_billing_cycles(db)
+
+
+@app.get("/billing-cycles/{billing_cycle_id}")
+def read_billing_cycle(
+    billing_cycle_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    billing_cycle = get_billing_cycle(
+        db,
+        billing_cycle_id
+    )
+
+    if billing_cycle is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Billing Cycle not found"
+        )
+
+    return billing_cycle
+
+
+@app.put("/billing-cycles/{billing_cycle_id}")
+def edit_billing_cycle(
+    billing_cycle_id: int,
+    billing_cycle: BillingCycleCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_billing_cycle(
+        db,
+        billing_cycle_id,
+        billing_cycle
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Billing Cycle not found"
+        )
+
+    return updated
+
+
+@app.delete("/billing-cycles/{billing_cycle_id}")
+def remove_billing_cycle(
+    billing_cycle_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_billing_cycle(
+        db,
+        billing_cycle_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Billing Cycle not found"
+        )
+
+    return deleted
+
+# ==========================================================
+# INVOICE CRUD
+# ==========================================================
+
+@app.post("/invoices")
+def add_invoice(
+    invoice: InvoiceCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return create_invoice(db, invoice)
+
+
+@app.get("/invoices")
+def read_invoices(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return get_invoices(db)
+
+
+@app.get("/invoices/{invoice_id}")
+def read_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    invoice = get_invoice(db, invoice_id)
+
+    if invoice is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Invoice not found"
+        )
+
+    return invoice
+
+
+@app.put("/invoices/{invoice_id}")
+def edit_invoice(
+    invoice_id: int,
+    invoice: InvoiceCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_invoice(
+        db,
+        invoice_id,
+        invoice
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Invoice not found"
+        )
+
+    return updated
+
+
+@app.delete("/invoices/{invoice_id}")
+def remove_invoice(
+    invoice_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_invoice(
+        db,
+        invoice_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Invoice not found"
+        )
+
+    return deleted
+
+# ==========================================================
+# PAYMENT CRUD
+# ==========================================================
+
+@app.post("/payments")
+def add_payment(
+    payment: PaymentCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return create_payment(
+        db,
+        payment
+    )
+
+
+@app.get("/payments")
+def read_payments(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return get_payments(db)
+
+
+@app.get("/payments/{payment_id}")
+def read_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    payment = get_payment(
+        db,
+        payment_id
+    )
+
+    if payment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found"
+        )
+
+    return payment
+
+
+@app.put("/payments/{payment_id}")
+def edit_payment(
+    payment_id: int,
+    payment: PaymentCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_payment(
+        db,
+        payment_id,
+        payment
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found"
+        )
+
+    return updated
+
+
+@app.delete("/payments/{payment_id}")
+def remove_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_payment(
+        db,
+        payment_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Payment not found"
+        )
+
+    return deleted
+
+# ==========================================================
+# AUDIT LOG CRUD
+# ==========================================================
+
+@app.post("/audit-logs")
+def add_audit_log(
+    audit_log: AuditLogCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return create_audit_log(
+        db,
+        audit_log
+    )
+
+
+@app.get("/audit-logs")
+def read_audit_logs(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    return get_audit_logs(db)
+
+
+@app.get("/audit-logs/{audit_log_id}")
+def read_audit_log(
+    audit_log_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    audit_log = get_audit_log(
+        db,
+        audit_log_id
+    )
+
+    if audit_log is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Audit Log not found"
+        )
+
+    return audit_log
+
+
+@app.put("/audit-logs/{audit_log_id}")
+def edit_audit_log(
+    audit_log_id: int,
+    audit_log: AuditLogCreate,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    updated = update_audit_log(
+        db,
+        audit_log_id,
+        audit_log
+    )
+
+    if updated is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Audit Log not found"
+        )
+
+    return updated
+
+
+@app.delete("/audit-logs/{audit_log_id}")
+def remove_audit_log(
+    audit_log_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    deleted = delete_audit_log(
+        db,
+        audit_log_id
+    )
+
+    if deleted is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Audit Log not found"
         )
 
     return deleted
