@@ -1,0 +1,50 @@
+.confirmation-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:9999;
+    backdrop-filter:blur(4px);
+}
+
+.confirmation-modal{
+    width:420px;
+    background:#fff;
+    border-radius:18px;
+    padding:30px;
+    box-shadow:0 25px 60px rgba(0,0,0,.15);
+    animation:popup .25s ease;
+}
+
+.confirmation-modal h2{
+    margin:0 0 12px;
+    color:#1e293b;
+}
+
+.confirmation-modal p{
+    color:#64748b;
+    line-height:1.6;
+}
+
+.confirmation-actions{
+    margin-top:30px;
+    display:flex;
+    justify-content:flex-end;
+    gap:12px;
+}
+
+@keyframes popup{
+
+    from{
+        opacity:0;
+        transform:scale(.95);
+    }
+
+    to{
+        opacity:1;
+        transform:scale(1);
+    }
+
+}

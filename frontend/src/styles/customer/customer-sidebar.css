@@ -1,0 +1,150 @@
+/* ===========================
+   CUSTOMER SIDEBAR
+=========================== */
+
+.customer-sidebar{
+    width:260px;
+    min-width:260px;
+    background:#fff;
+    border-right:1px solid #E5E7EB;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:24px 18px;
+    flex-shrink:0;
+}
+
+/* ===========================
+   Brand
+=========================== */
+
+.brand{
+    margin-bottom:40px;
+}
+
+.brand h1{
+    font-size:30px;
+    color:var(--primary);
+}
+
+.brand span{
+    color:#111827;
+}
+
+.brand p{
+    color:#64748B;
+    margin-top:6px;
+    font-size:14px;
+}
+
+/* ===========================
+   Navigation
+=========================== */
+
+.sidebar-nav{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.sidebar-link{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 16px;
+    border-radius:14px;
+    color:#475569;
+    font-weight:600;
+    transition:.25s;
+}
+
+.sidebar-link:hover{
+    background:#EEF2FF;
+    color:var(--primary);
+}
+
+.sidebar-link.active{
+    background:var(--primary);
+    color:#fff;
+}
+
+.sidebar-icon{
+    font-size:18px;
+}
+
+
+/* ===========================
+   Bottom
+=========================== */
+
+.sidebar-bottom{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+.settings-btn,
+.logout-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+}
+
+.settings-btn{
+    background:#F1F5F9;
+}
+
+.logout-btn{
+    background:#EF4444;
+    color:#fff;
+}
+
+.logout-btn:hover{
+
+    background:#dc2626;
+
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+@media(max-width:992px){
+
+    .customer-sidebar{
+
+        width:220px;
+
+        min-width:220px;
+
+    }
+
+}
+
+@media(max-width:768px){
+
+    .customer-sidebar{
+
+        position:fixed;
+
+        left:-260px;
+
+        transition:.3s;
+
+        z-index:1000;
+
+    }
+
+    .customer-sidebar.open{
+
+        left:0;
+
+    }
+
+}

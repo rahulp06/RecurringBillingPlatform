@@ -1,0 +1,61 @@
+.customer-billing{
+
+    padding:30px;
+
+}
+
+.invoice-search{
+
+    width:320px;
+
+    padding:14px 18px;
+
+    border-radius:12px;
+
+    border:1px solid #d1d5db;
+
+    outline:none;
+
+    font-size:15px;
+
+}
+
+.invoice-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.invoice-table th{
+
+    background:#f8fafc;
+
+    color:#64748b;
+
+    text-align:left;
+
+    padding:16px;
+
+}
+
+.invoice-table td{
+
+    padding:18px 16px;
+
+    border-bottom:1px solid #e5e7eb;
+
+}
+
+.invoice-table tr{
+
+    transition:.2s;
+
+}
+
+.invoice-table tbody tr:hover{
+
+    background:#f8fafc;
+
+}

@@ -4,12 +4,19 @@ from .schemas import PlanCreate,SubscriptionCreate,BillingCycleCreate,InvoiceCre
 from .models import Customer, Subscription, BillingCycle,Invoice,Payment,AuditLog
 from .schemas import CustomerSignup
 from .security import hash_password,verify_password
+from datetime import date, timedelta, datetime
 
 def create_plan(db: Session, plan: PlanCreate):
     db_plan = Plan(**plan.model_dump())
     db.add(db_plan)
     db.commit()
     db.refresh(db_plan)
+    log_audit(
+        db,
+        "plan",
+        db_plan.id,
+        "Plan Created"
+    )
     return db_plan
 
 def get_plans(db: Session):
@@ -44,6 +51,12 @@ def create_customer(db: Session, customer: CustomerSignup):
     db.add(db_customer)
     db.commit()
     db.refresh(db_customer)
+    log_audit(
+        db,
+        "customer",
+        db_customer.id,
+        "Customer Created"
+    )
 
     return db_customer
 
@@ -90,6 +103,12 @@ def update_plan(db: Session, plan_id: int, updated_plan):
 
     db.commit()
     db.refresh(plan)
+    log_audit(
+        db,
+        "plan",
+        plan.id,
+        "Plan Updated"
+    )
 
     return plan
 
@@ -164,20 +183,337 @@ def delete_customer(
         "message": "Customer deleted successfully"
     }
 
-def create_subscription(db: Session, subscription: SubscriptionCreate):
+def log_audit(
+    db: Session,
+    entity_type: str,
+    entity_id: int,
+    action: str,
+    old_value: str = "",
+    new_value: str = "",
+    performed_by: str = "System"
+):
 
-    db_subscription = Subscription(
-        **subscription.model_dump()
+    audit = AuditLog(
+
+        entity_type=entity_type,
+
+        entity_id=entity_id,
+
+        action=action,
+
+        old_value=old_value,
+
+        new_value=new_value,
+
+        performed_by=performed_by,
+
+        created_at=datetime.utcnow()
+
     )
 
-    db.add(db_subscription)
+    db.add(audit)
+
+    return audit
+
+def create_subscription(db: Session, subscription: SubscriptionCreate):
+
+    try:
+
+        # -----------------------------
+        # Validate Customer
+        # -----------------------------
+        customer = (
+            db.query(Customer)
+            .filter(Customer.id == subscription.customer_id)
+            .first()
+        )
+
+        if customer is None:
+            raise ValueError("Customer not found")
+
+        # -----------------------------
+        # Validate Plan
+        # -----------------------------
+        plan = (
+            db.query(Plan)
+            .filter(Plan.id == subscription.plan_id)
+            .first()
+        )
+
+        if plan is None:
+            raise ValueError("Plan not found")
+
+        # -----------------------------
+        # Calculate Dates
+        # -----------------------------
+        today = date.today()
+
+        if plan.trial_days > 0:
+
+            status = "trial"
+            end_date = today + timedelta(days=plan.trial_days)
+
+        else:
+
+            status = "active"
+
+            if plan.billing_interval.lower() == "monthly":
+
+                end_date = today + timedelta(days=30)
+
+            elif plan.billing_interval.lower() == "annual":
+
+                end_date = today + timedelta(days=365)
+
+            else:
+
+                raise ValueError("Invalid billing interval")
+
+        # -----------------------------
+        # Create Subscription
+        # -----------------------------
+        db_subscription = Subscription(
+
+            customer_id=subscription.customer_id,
+            plan_id=subscription.plan_id,
+            status=status,
+            start_date=today,
+            end_date=end_date
+
+        )
+
+        db.add(db_subscription)
+
+        # Get generated ID without committing
+        db.flush()
+
+        # -----------------------------
+        # Create Billing Cycle
+        # -----------------------------
+        billing_cycle = BillingCycle(
+
+            subscription_id=db_subscription.id,
+            cycle_start_date=today,
+            cycle_end_date=end_date,
+            renewal_date=end_date,
+            status="pending",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+
+        )
+
+        db.add(billing_cycle)
+
+        # -----------------------------
+        # Create Invoice
+        # -----------------------------
+        invoice = Invoice(
+
+            invoice_number=f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+
+            subscription_id=db_subscription.id,
+
+            customer_id=db_subscription.customer_id,
+
+            invoice_date=today,
+
+            due_date=end_date,
+
+            subtotal=plan.price,
+
+            tax_amount=0,
+
+            total_amount=plan.price,
+
+            status="paid"
+
+        )
+
+        db.add(invoice)
+
+        # Get invoice ID without committing
+        db.flush()
+
+        # -----------------------------
+        # Create Payment
+        # -----------------------------
+        payment = Payment(
+
+            invoice_id=invoice.id,
+
+            payment_reference=f"PAY-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+
+            amount=invoice.total_amount,
+
+            payment_method="UPI",
+
+            status="paid",
+
+            payment_date=datetime.utcnow(),
+
+            created_at=datetime.utcnow(),
+
+            updated_at=datetime.utcnow()
+
+        )
+
+        db.add(payment)
+
+        # -----------------------------
+        # Stage Audit Logs
+        # -----------------------------
+        log_audit(
+            db,
+            "subscription",
+            db_subscription.id,
+            "Subscription Created"
+        )
+
+        log_audit(
+            db,
+            "invoice",
+            invoice.id,
+            "Invoice Generated"
+        )
+
+        log_audit(
+            db,
+            "payment",
+            payment.id,
+            "Payment Successful"
+        )
+
+        # -----------------------------
+        # ONE SINGLE COMMIT
+        # -----------------------------
+        db.commit()
+
+        # Refresh objects after commit
+        db.refresh(db_subscription)
+        db.refresh(billing_cycle)
+        db.refresh(invoice)
+        db.refresh(payment)
+
+        return db_subscription
+
+    except Exception:
+
+        db.rollback()
+
+        raise
+
+def pause_subscription(db: Session, subscription_id: int):
+
+    subscription = db.query(Subscription).filter(
+        Subscription.id == subscription_id
+    ).first()
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    from .services import change_subscription_status
+
+    change_subscription_status(subscription, "paused")
+
     db.commit()
-    db.refresh(db_subscription)
+    db.refresh(subscription)
 
-    return db_subscription
+    return subscription
 
-def get_subscriptions(db: Session):
-    return db.query(Subscription).all()
+
+def resume_subscription(db: Session, subscription_id: int):
+
+    subscription = db.query(Subscription).filter(
+        Subscription.id == subscription_id
+    ).first()
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    from .services import change_subscription_status
+
+    change_subscription_status(subscription, "active")
+
+    db.commit()
+    db.refresh(subscription)
+
+    return subscription
+
+
+def cancel_subscription(db: Session, subscription_id: int):
+
+    subscription = db.query(Subscription).filter(
+        Subscription.id == subscription_id
+    ).first()
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    from .services import change_subscription_status
+
+    change_subscription_status(subscription, "cancelled")
+
+    db.commit()
+    db.refresh(subscription)
+    log_audit(
+        db,
+        "subscription",
+        subscription.id,
+        "Subscription Cancelled"
+    )
+
+    return subscription
+
+def change_plan(
+    db: Session,
+    subscription_id: int,
+    new_plan_id: int
+):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    plan = (
+        db.query(Plan)
+        .filter(Plan.id == new_plan_id)
+        .first()
+    )
+
+    if plan is None:
+        raise ValueError("Plan not found")
+
+    subscription.plan_id = new_plan_id
+    subscription.status_changed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(subscription)
+    log_audit(
+        db,
+        "subscription",
+        subscription.id,
+        "Plan Changed"
+    )
+
+    return subscription
+
+def get_subscriptions(db: Session, current_user: Customer):
+
+    if current_user.role == "admin":
+        return db.query(Subscription).all()
+
+    return (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .all()
+    )
 
 def get_subscription(db: Session, subscription_id: int):
 
@@ -234,6 +570,78 @@ def delete_subscription(
         "message": "Subscription deleted successfully"
     }
 
+def change_my_plan(db, current_user, plan_id):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .first()
+    )
+
+    if not subscription:
+        raise ValueError("No active subscription found.")
+
+    return change_plan(
+        db,
+        subscription.id,
+        plan_id
+    )
+
+def pause_my_subscription(db, current_user):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .first()
+    )
+
+    if not subscription:
+        raise ValueError("No active subscription found.")
+
+    return pause_subscription(
+        db,
+        subscription.id
+    )
+
+def resume_my_subscription(db, current_user):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .first()
+    )
+
+    if not subscription:
+        raise ValueError("No active subscription found.")
+
+    return resume_subscription(
+        db,
+        subscription.id
+    )
+
+def cancel_my_subscription(db, current_user):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .first()
+    )
+
+    if not subscription:
+        raise ValueError("No active subscription found.")
+
+    return cancel_subscription(
+        db,
+        subscription.id
+    )
 # ==========================
 # BILLING CYCLE CRUD
 # ==========================
@@ -258,9 +666,22 @@ def create_billing_cycle(
     return db_billing_cycle
 
 
-def get_billing_cycles(db: Session):
+def get_billing_cycles(db: Session, current_user: Customer):
 
-    return db.query(BillingCycle).all()
+    if current_user.role == "admin":
+        return db.query(BillingCycle).all()
+
+    return (
+        db.query(BillingCycle)
+        .join(
+            Subscription,
+            BillingCycle.subscription_id == Subscription.id
+        )
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .all()
+    )
 
 
 def get_billing_cycle(
@@ -325,19 +746,96 @@ def delete_billing_cycle(
         "message": "Billing Cycle deleted successfully"
     }
 
+def generate_billing_cycle(
+    db: Session,
+    subscription_id: int
+):
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    plan = (
+        db.query(Plan)
+        .filter(Plan.id == subscription.plan_id)
+        .first()
+    )
+
+    today = date.today()
+
+    if plan.billing_interval.lower() == "monthly":
+        renewal_date = today + timedelta(days=30)
+
+    elif plan.billing_interval.lower() == "annual":
+        renewal_date = today + timedelta(days=365)
+
+    else:
+        raise ValueError("Invalid billing interval")
+
+    billing_cycle = BillingCycle(
+        subscription_id=subscription.id,
+        cycle_start_date=today,
+        cycle_end_date=renewal_date,
+        renewal_date=renewal_date,
+        status="pending",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+
+    db.add(billing_cycle)
+    db.commit()
+    db.refresh(billing_cycle)
+
+    return billing_cycle
+
 # ==========================
 # INVOICE CRUD
 # ==========================
 
-def create_invoice(db: Session, invoice: InvoiceCreate):
+def create_invoice(
+    db: Session,
+    invoice: InvoiceCreate
+):
 
     db_invoice = Invoice(
-        **invoice.model_dump()
+
+        invoice_number=invoice.invoice_number,
+
+        subscription_id=invoice.subscription_id,
+
+        customer_id=invoice.customer_id,
+
+        invoice_date=invoice.invoice_date,
+
+        due_date=invoice.due_date,
+
+        subtotal=invoice.subtotal,
+
+        tax_amount=invoice.tax_amount,
+
+        total_amount=invoice.total_amount,
+
+        status="pending"
+
     )
 
     db.add(db_invoice)
+
     db.commit()
+
     db.refresh(db_invoice)
+
+    log_audit(
+        db,
+        "invoice",
+        db_invoice.id,
+        "Invoice Created"
+    )
 
     return db_invoice
 
@@ -411,6 +909,19 @@ def delete_invoice(
         "message": "Invoice deleted successfully"
     }
 
+def get_my_invoices(db, current_user):
+
+    return (
+        db.query(Invoice)
+        .filter(
+            Invoice.customer_id == current_user.id
+        )
+        .order_by(
+            Invoice.invoice_date.desc()
+        )
+        .all()
+    )
+
 # ==========================
 # PAYMENT CRUD
 # ==========================
@@ -420,13 +931,51 @@ def create_payment(
     payment: PaymentCreate
 ):
 
+    invoice = (
+        db.query(Invoice)
+        .filter(
+            Invoice.id == payment.invoice_id
+        )
+        .first()
+    )
+
+    if invoice is None:
+        raise ValueError("Invoice not found")
+
     db_payment = Payment(
-        **payment.model_dump()
+
+        invoice_id=payment.invoice_id,
+
+        payment_reference=payment.payment_reference,
+
+        amount=payment.amount,
+
+        payment_method=payment.payment_method,
+
+        payment_date=payment.payment_date,
+
+        created_at=payment.created_at,
+
+        updated_at=payment.updated_at,
+
+        status="paid"
+
     )
 
     db.add(db_payment)
+
+    invoice.status = "paid"
+
     db.commit()
+
     db.refresh(db_payment)
+
+    log_audit(
+        db,
+        "payment",
+        db_payment.id,
+        "Payment Successful"
+    )
 
     return db_payment
 
@@ -498,6 +1047,23 @@ def delete_payment(
     return {
         "message": "Payment deleted successfully"
     }
+
+def get_my_payments(db, current_user):
+
+    return (
+        db.query(Payment)
+        .join(
+            Invoice,
+            Payment.invoice_id == Invoice.id
+        )
+        .filter(
+            Invoice.customer_id == current_user.id
+        )
+        .order_by(
+            Payment.payment_date.desc()
+        )
+        .all()
+    )
 
 # ==========================
 # AUDIT LOG CRUD

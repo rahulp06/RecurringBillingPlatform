@@ -55,5 +55,7 @@ def decode_access_token(token: str):
 
         return payload
 
-    except JWTError:
+    except JWTError as e:
+        print("JWT ERROR:", e)
         return None
+        

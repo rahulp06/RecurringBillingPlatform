@@ -1,0 +1,407 @@
+.table-container{
+
+    background:#fff;
+
+    border:1px solid var(--border);
+
+    border-radius:22px;
+
+    overflow:hidden;
+
+    box-shadow:var(--shadow-sm);
+
+}
+
+.table-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:24px;
+
+    border-bottom:1px solid #EEF2F7;
+
+}
+
+.table-title{
+
+    font-size:22px;
+
+    font-weight:700;
+
+    color:var(--text);
+
+}
+
+.table-subtitle{
+
+    margin-top:4px;
+
+    font-size:14px;
+
+    color:var(--text-light);
+
+}
+
+.table-actions{
+
+    display:flex;
+
+    gap:14px;
+
+    align-items:center;
+
+}
+
+.search-wrapper{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    width:320px;
+
+    height:48px;
+
+    padding:0 18px;
+
+    background:#F8FAFC;
+
+    border:1px solid var(--border);
+
+    border-radius:16px;
+
+}
+
+.search-wrapper svg{
+
+    color:#94A3B8;
+
+}
+
+.search-wrapper input{
+
+    flex:1;
+
+    border:none;
+
+    outline:none;
+
+    background:transparent;
+
+    font-size:15px;
+
+}
+
+.billing-table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+.billing-table thead{
+
+    background:#F8FAFC;
+
+}
+
+.billing-table th{
+
+    padding:18px 24px;
+
+    text-align:left;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    color:#64748B;
+
+    text-transform:uppercase;
+
+    letter-spacing:.5px;
+
+}
+
+.billing-table td{
+
+    padding:20px 24px;
+
+    border-top:1px solid #EEF2F7;
+
+    transition:.25s;
+
+}
+
+.billing-table tbody tr{
+
+    transition:.25s;
+
+}
+
+.billing-table tbody tr:hover{
+
+    background:#FAFBFC;
+
+}
+
+.table-user{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+}
+
+.table-avatar{
+
+    width:42px;
+
+    height:42px;
+
+    border-radius:50%;
+
+    background:linear-gradient(135deg,#635BFF,#8B5CF6);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    color:#fff;
+
+    font-weight:700;
+
+    font-size:14px;
+
+}
+
+.table-user h4{
+
+    font-size:15px;
+
+    color:var(--text);
+
+}
+
+.table-user p{
+
+    margin-top:3px;
+
+    font-size:13px;
+
+    color:var(--text-light);
+
+}
+
+.status{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:6px 14px;
+
+    border-radius:999px;
+
+    font-size:13px;
+
+    font-weight:600;
+
+}
+
+.status.active{
+
+    background:#DCFCE7;
+
+    color:#15803D;
+
+}
+
+.status.pending{
+
+    background:#FEF3C7;
+
+    color:#B45309;
+
+}
+
+.status.failed{
+
+    background:#FEE2E2;
+
+    color:#B91C1C;
+
+}
+
+.status.cancelled{
+
+    background:#E5E7EB;
+
+    color:#374151;
+
+}
+
+.icon-actions{
+
+    display:flex;
+
+    gap:10px;
+
+}
+
+.action-btn{
+
+    width:40px;
+
+    height:40px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#F8FAFC;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.action-btn:hover{
+
+    transform:translateY(-2px);
+
+}
+
+.edit-btn{
+
+    color:#635BFF;
+
+}
+
+.delete-btn{
+
+    color:#EF4444;
+
+}
+
+.view-btn{
+
+    color:#0EA5E9;
+
+}
+
+.table-footer{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:20px 24px;
+
+    border-top:1px solid #EEF2F7;
+
+}
+
+.pagination{
+
+    display:flex;
+
+    gap:10px;
+
+}
+
+.page-btn{
+
+    width:40px;
+
+    height:40px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#F8FAFC;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.page-btn:hover{
+
+    background:#EEF2FF;
+
+}
+
+.page-btn.active{
+
+    background:var(--primary);
+
+    color:#fff;
+
+}
+
+.status.admin{
+
+    background:#DBEAFE;
+    color:#1D4ED8;
+
+}
+
+.status.customer{
+
+    background:#DCFCE7;
+    color:#15803D;
+
+}
+
+.subscription-cell{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:4px;
+
+}
+
+.subscription-cell strong{
+
+    font-size:15px;
+
+    font-weight:600;
+
+    color:#64748B;
+
+}
+
+.subscription-cell span{
+
+    font-size:13px;
+
+    color:#6b7280;
+
+}

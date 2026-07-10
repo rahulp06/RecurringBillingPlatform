@@ -59,24 +59,28 @@ class Token(BaseModel):
 # SUBSCRIPTION
 # ==========================
 
-class SubscriptionBase(BaseModel):
+# ==========================
+# SUBSCRIPTION
+# ==========================
+
+class SubscriptionCreate(BaseModel):
+    customer_id: int
+    plan_id: int
+
+
+class SubscriptionResponse(BaseModel):
+    id: int
     customer_id: int
     plan_id: int
     status: str
     start_date: date
     end_date: date
 
-
-class SubscriptionCreate(SubscriptionBase):
-    pass
-
-
-class SubscriptionResponse(SubscriptionBase):
-    id: int
-
     class Config:
         from_attributes = True
 
+class ChangePlanRequest(BaseModel):
+    plan_id: int
 
 # ==========================
 # BILLING CYCLE
@@ -118,9 +122,23 @@ class InvoiceBase(BaseModel):
     status: str
 
 
-class InvoiceCreate(InvoiceBase):
-    pass
+class InvoiceCreate(BaseModel):
 
+    invoice_number: str
+
+    subscription_id: int
+
+    customer_id: int
+
+    invoice_date: date
+
+    due_date: date
+
+    subtotal: float
+
+    tax_amount: float
+
+    total_amount: float
 
 class InvoiceResponse(InvoiceBase):
     id: int
@@ -145,8 +163,21 @@ class PaymentBase(BaseModel):
     updated_at: datetime
 
 
-class PaymentCreate(PaymentBase):
-    pass
+class PaymentCreate(BaseModel):
+
+    invoice_id: int
+
+    payment_reference: str
+
+    amount: float
+
+    payment_method: str
+
+    payment_date: datetime
+
+    created_at: datetime
+
+    updated_at: datetime
 
 
 class PaymentResponse(PaymentBase):

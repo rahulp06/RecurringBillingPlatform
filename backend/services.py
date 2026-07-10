@@ -2,7 +2,8 @@ from datetime import datetime
 
 VALID_TRANSITIONS = {
     "trial": ["active", "cancelled"],
-    "active": ["past_due", "cancelled"],
+    "active": ["paused","past_due", "cancelled"],
+    "paused": ["active", "cancelled"],
     "past_due": ["active", "cancelled"],
     "cancelled": []
 }
@@ -11,6 +12,9 @@ VALID_TRANSITIONS = {
 def change_subscription_status(subscription, new_status):
 
     current_status = subscription.status
+
+    if current_status == new_status:
+        return subscription  
 
     if new_status not in VALID_TRANSITIONS[current_status]:
         raise ValueError(

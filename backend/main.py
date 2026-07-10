@@ -23,7 +23,8 @@ from backend.schemas import (
     BillingCycleCreate,
     InvoiceCreate,
     PaymentCreate,
-    AuditLogCreate
+    AuditLogCreate,
+    ChangePlanRequest
 )
 from backend.crud import (
     create_plan,
@@ -62,7 +63,18 @@ from backend.crud import (
     get_audit_logs,
     get_audit_log,
     update_audit_log,
-    delete_audit_log
+    delete_audit_log,
+    pause_subscription,
+    resume_subscription,
+    cancel_subscription,
+    change_plan,
+    generate_billing_cycle,
+    get_my_invoices,
+    get_my_payments,
+    change_my_plan,
+    pause_my_subscription,
+    resume_my_subscription,
+    cancel_my_subscription
 )
 from backend.security import (
     create_access_token, 
@@ -71,7 +83,24 @@ from backend.security import (
     verify_password
 )
 
-app = FastAPI()
+tags_metadata = [
+    {"name": "Authentication"},
+    {"name": "Profile"},
+    {"name": "Plans"},
+    {"name": "Customers"},
+    {"name": "Subscriptions"},
+    {"name": "Billing Cycles"},
+    {"name": "Invoices"},
+    {"name": "Payments"},
+    {"name": "Audit Logs"},
+]
+
+app = FastAPI(
+    title="Recurring Billing Platform API",
+    description="Backend APIs for the Recurring Billing Platform",
+    version="1.0.0",
+    openapi_tags=tags_metadata
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,7 +123,11 @@ def get_current_user(
     db: Session = Depends(get_db)
 ):
 
+    print("TOKEN:", token)
+
     payload = decode_access_token(token)
+
+    print("PAYLOAD:", payload)
 
     if payload is None:
         raise HTTPException(
@@ -104,10 +137,11 @@ def get_current_user(
 
     email = payload.get("sub")
 
-    customer = get_customer_by_email(
-        db,
-        email
-    )
+    print("EMAIL:", email)
+
+    customer = get_customer_by_email(db, email)
+
+    print("CUSTOMER:", customer)
 
     if customer is None:
         raise HTTPException(
@@ -133,7 +167,7 @@ def root():
     return RedirectResponse(url="/docs")
 
 
-@app.post("/plans")
+@app.post("/plans", tags=["Plans"])
 def add_plan(
     plan: PlanCreate,
     db: Session = Depends(get_db),
@@ -142,11 +176,11 @@ def add_plan(
     return create_plan(db, plan)
 
 
-@app.get("/plans")
+@app.get("/plans", tags=["Plans"])
 def read_plans(db: Session = Depends(get_db)):
     return get_plans(db)
 
-@app.post("/signup")
+@app.post("/signup", tags=["Authentication"])
 def signup(
     customer: CustomerSignup,
     db: Session = Depends(get_db)
@@ -169,7 +203,7 @@ def signup(
         "message": "Customer registered successfully"
     }
 
-@app.post("/login", response_model=Token)
+@app.post("/login", response_model=Token, tags=["Authentication"])
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
@@ -200,7 +234,7 @@ def login(
     }
 
 
-@app.get("/me")
+@app.get("/me", tags=["Profile"])
 def get_me(
     current_user: Customer = Depends(get_current_user)
 ):
@@ -212,7 +246,7 @@ def get_me(
         "role": current_user.role
     }
 
-@app.get("/plans/{plan_id}")
+@app.get("/plans/{plan_id}", tags=["Plans"])
 def read_plan(
     plan_id: int,
     db: Session = Depends(get_db)
@@ -228,7 +262,7 @@ def read_plan(
 
     return plan
 
-@app.put("/plans/{plan_id}")
+@app.put("/plans/{plan_id}", tags=["Plans"])
 def edit_plan(
     plan_id: int,
     plan: PlanCreate,
@@ -250,7 +284,7 @@ def edit_plan(
 
     return updated
 
-@app.delete("/plans/{plan_id}")
+@app.delete("/plans/{plan_id}", tags=["Plans"])
 def remove_plan(
     plan_id: int,
     db: Session = Depends(get_db),
@@ -270,14 +304,14 @@ def remove_plan(
 
     return deleted
 
-@app.get("/customers")
+@app.get("/customers", tags=["Customers"])
 def read_customers(
     db: Session = Depends(get_db),
     admin: Customer = Depends(require_admin)
 ):
     return get_customers(db)
 
-@app.get("/customers/{customer_id}")
+@app.get("/customers/{customer_id}", tags=["Customers"])
 def read_customer(
     customer_id: int,
     db: Session = Depends(get_db),
@@ -294,7 +328,7 @@ def read_customer(
 
     return customer
 
-@app.put("/customers/{customer_id}")
+@app.put("/customers/{customer_id}", tags=["Customers"])
 def edit_customer(
     customer_id: int,
     customer: CustomerUpdate,
@@ -316,7 +350,7 @@ def edit_customer(
 
     return updated
 
-@app.delete("/customers/{customer_id}")
+@app.delete("/customers/{customer_id}", tags=["Customers"])
 def remove_customer(
     customer_id: int,
     db: Session = Depends(get_db),
@@ -336,27 +370,93 @@ def remove_customer(
 
     return deleted
 
-@app.post("/subscriptions")
+@app.post("/subscriptions", tags=["Subscriptions"])
 def add_subscription(
     subscription: SubscriptionCreate,
     db: Session = Depends(get_db),
-    admin: Customer = Depends(require_admin)
+    current_user: Customer = Depends(get_current_user)
 ):
 
-    return create_subscription(
-        db,
-        subscription
-    )
+    try:
+        return create_subscription(db, subscription)
 
-@app.get("/subscriptions")
-def read_subscriptions(
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.post("/subscriptions/{subscription_id}/pause", tags=["Subscriptions"])
+def pause_subscription_api(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return pause_subscription(db, subscription_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/subscriptions/{subscription_id}/resume", tags=["Subscriptions"])
+def resume_subscription_api(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return resume_subscription(db, subscription_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/subscriptions/{subscription_id}/cancel", tags=["Subscriptions"])
+def cancel_subscription_api(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return cancel_subscription(db, subscription_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/subscriptions/{subscription_id}/change-plan", tags=["Subscriptions"])
+def change_plan_api(
+    subscription_id: int,
+    request: ChangePlanRequest,
     db: Session = Depends(get_db),
     admin: Customer = Depends(require_admin)
 ):
 
-    return get_subscriptions(db)
+    try:
+        return change_plan(
+            db,
+            subscription_id,
+            request.plan_id
+        )
 
-@app.get("/subscriptions/{subscription_id}")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
+@app.get("/subscriptions", tags=["Subscriptions"])
+def read_subscriptions(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    return get_subscriptions(db, current_user)
+
+@app.get("/subscriptions/{subscription_id}", tags=["Subscriptions"])
 def read_subscription(
     subscription_id: int,
     db: Session = Depends(get_db),
@@ -376,7 +476,7 @@ def read_subscription(
 
     return subscription
 
-@app.put("/subscriptions/{subscription_id}")
+@app.put("/subscriptions/{subscription_id}", tags=["Subscriptions"])
 def edit_subscription(
     subscription_id: int,
     subscription: SubscriptionCreate,
@@ -398,7 +498,7 @@ def edit_subscription(
 
     return updated
 
-@app.delete("/subscriptions/{subscription_id}")
+@app.delete("/subscriptions/{subscription_id}", tags=["Subscriptions"])
 def remove_subscription(
     subscription_id: int,
     db: Session = Depends(get_db),
@@ -418,11 +518,92 @@ def remove_subscription(
 
     return deleted
 
+@app.post("/my-subscription/change-plan", tags=["Customer"])
+def customer_change_plan(
+    request: ChangePlanRequest,
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    try:
+
+        return change_my_plan(
+            db,
+            current_user,
+            request.plan_id
+        )
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    
+@app.post("/my-subscription/pause", tags=["Customer"])
+def customer_pause_subscription(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    try:
+
+        return pause_my_subscription(
+            db,
+            current_user
+        )
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    
+@app.post("/my-subscription/resume", tags=["Customer"])
+def customer_resume_subscription(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    try:
+
+        return resume_my_subscription(
+            db,
+            current_user
+        )
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    
+@app.post("/my-subscription/cancel", tags=["Customer"])
+def customer_cancel_subscription(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    try:
+
+        return cancel_my_subscription(
+            db,
+            current_user
+        )
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
 # ==========================================================
 # BILLING CYCLE CRUD
 # ==========================================================
 
-@app.post("/billing-cycles")
+@app.post("/billing-cycles", tags=["Billing Cycles"])
 def add_billing_cycle(
     billing_cycle: BillingCycleCreate,
     db: Session = Depends(get_db),
@@ -435,16 +616,16 @@ def add_billing_cycle(
     )
 
 
-@app.get("/billing-cycles")
+@app.get("/billing-cycles", tags=["Billing Cycles"])
 def read_billing_cycles(
     db: Session = Depends(get_db),
-    admin: Customer = Depends(require_admin)
+    current_user: Customer = Depends(get_current_user)
 ):
 
-    return get_billing_cycles(db)
+    return get_billing_cycles(db,current_user)
 
 
-@app.get("/billing-cycles/{billing_cycle_id}")
+@app.get("/billing-cycles/{billing_cycle_id}", tags=["Billing Cycles"])
 def read_billing_cycle(
     billing_cycle_id: int,
     db: Session = Depends(get_db),
@@ -465,7 +646,7 @@ def read_billing_cycle(
     return billing_cycle
 
 
-@app.put("/billing-cycles/{billing_cycle_id}")
+@app.put("/billing-cycles/{billing_cycle_id}", tags=["Billing Cycles"])
 def edit_billing_cycle(
     billing_cycle_id: int,
     billing_cycle: BillingCycleCreate,
@@ -488,7 +669,7 @@ def edit_billing_cycle(
     return updated
 
 
-@app.delete("/billing-cycles/{billing_cycle_id}")
+@app.delete("/billing-cycles/{billing_cycle_id}", tags=["Billing Cycles"])
 def remove_billing_cycle(
     billing_cycle_id: int,
     db: Session = Depends(get_db),
@@ -508,11 +689,30 @@ def remove_billing_cycle(
 
     return deleted
 
+@app.post("/subscriptions/{subscription_id}/generate-billing-cycle", tags=["Billing Cycles"])
+def generate_billing_cycle_api(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+
+    try:
+        return generate_billing_cycle(
+            db,
+            subscription_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
 # ==========================================================
 # INVOICE CRUD
 # ==========================================================
 
-@app.post("/invoices")
+@app.post("/invoices", tags=["Invoices"])
 def add_invoice(
     invoice: InvoiceCreate,
     db: Session = Depends(get_db),
@@ -522,7 +722,7 @@ def add_invoice(
     return create_invoice(db, invoice)
 
 
-@app.get("/invoices")
+@app.get("/invoices", tags=["Invoices"])
 def read_invoices(
     db: Session = Depends(get_db),
     admin: Customer = Depends(require_admin)
@@ -531,7 +731,7 @@ def read_invoices(
     return get_invoices(db)
 
 
-@app.get("/invoices/{invoice_id}")
+@app.get("/invoices/{invoice_id}", tags=["Invoices"])
 def read_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
@@ -549,7 +749,7 @@ def read_invoice(
     return invoice
 
 
-@app.put("/invoices/{invoice_id}")
+@app.put("/invoices/{invoice_id}", tags=["Invoices"])
 def edit_invoice(
     invoice_id: int,
     invoice: InvoiceCreate,
@@ -572,7 +772,7 @@ def edit_invoice(
     return updated
 
 
-@app.delete("/invoices/{invoice_id}")
+@app.delete("/invoices/{invoice_id}", tags=["Invoices"])
 def remove_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
@@ -592,11 +792,22 @@ def remove_invoice(
 
     return deleted
 
+@app.get("/my-invoices", tags=["Profile"])
+def read_my_invoices(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    return get_my_invoices(
+        db,
+        current_user
+    )
+
 # ==========================================================
 # PAYMENT CRUD
 # ==========================================================
 
-@app.post("/payments")
+@app.post("/payments", tags=["Payments"])
 def add_payment(
     payment: PaymentCreate,
     db: Session = Depends(get_db),
@@ -609,7 +820,7 @@ def add_payment(
     )
 
 
-@app.get("/payments")
+@app.get("/payments", tags=["Payments"])
 def read_payments(
     db: Session = Depends(get_db),
     admin: Customer = Depends(require_admin)
@@ -618,7 +829,7 @@ def read_payments(
     return get_payments(db)
 
 
-@app.get("/payments/{payment_id}")
+@app.get("/payments/{payment_id}", tags=["Payments"])
 def read_payment(
     payment_id: int,
     db: Session = Depends(get_db),
@@ -639,7 +850,7 @@ def read_payment(
     return payment
 
 
-@app.put("/payments/{payment_id}")
+@app.put("/payments/{payment_id}", tags=["Payments"])
 def edit_payment(
     payment_id: int,
     payment: PaymentCreate,
@@ -662,7 +873,7 @@ def edit_payment(
     return updated
 
 
-@app.delete("/payments/{payment_id}")
+@app.delete("/payments/{payment_id}", tags=["Payments"])
 def remove_payment(
     payment_id: int,
     db: Session = Depends(get_db),
@@ -682,11 +893,22 @@ def remove_payment(
 
     return deleted
 
+@app.get("/my-payments", tags=["Profile"])
+def read_my_payments(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+
+    return get_my_payments(
+        db,
+        current_user
+    )
+
 # ==========================================================
 # AUDIT LOG CRUD
 # ==========================================================
 
-@app.post("/audit-logs")
+@app.post("/audit-logs", tags=["Audit Logs"])
 def add_audit_log(
     audit_log: AuditLogCreate,
     db: Session = Depends(get_db),
@@ -699,7 +921,7 @@ def add_audit_log(
     )
 
 
-@app.get("/audit-logs")
+@app.get("/audit-logs", tags=["Audit Logs"])
 def read_audit_logs(
     db: Session = Depends(get_db),
     admin: Customer = Depends(require_admin)
@@ -708,7 +930,7 @@ def read_audit_logs(
     return get_audit_logs(db)
 
 
-@app.get("/audit-logs/{audit_log_id}")
+@app.get("/audit-logs/{audit_log_id}", tags=["Audit Logs"])
 def read_audit_log(
     audit_log_id: int,
     db: Session = Depends(get_db),
@@ -729,7 +951,7 @@ def read_audit_log(
     return audit_log
 
 
-@app.put("/audit-logs/{audit_log_id}")
+@app.put("/audit-logs/{audit_log_id}", tags=["Audit Logs"])
 def edit_audit_log(
     audit_log_id: int,
     audit_log: AuditLogCreate,
@@ -752,7 +974,7 @@ def edit_audit_log(
     return updated
 
 
-@app.delete("/audit-logs/{audit_log_id}")
+@app.delete("/audit-logs/{audit_log_id}", tags=["Audit Logs"])
 def remove_audit_log(
     audit_log_id: int,
     db: Session = Depends(get_db),

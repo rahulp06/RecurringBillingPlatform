@@ -1,0 +1,401 @@
+/* ===========================
+   CUSTOMER DASHBOARD
+=========================== */
+
+.dashboard{
+    display:flex;
+    flex-direction:column;
+    gap:30px;
+    background:#f7f9fc;
+}
+
+/* ===========================
+   Welcome Banner
+=========================== */
+
+.welcome-banner{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:#fff;
+    padding:28px 35px;
+    border-radius:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+}
+
+.welcome-banner h1{
+    margin:0;
+    font-size:32px;
+    color:#1e293b;
+}
+
+.welcome-banner p{
+    margin-top:8px;
+    color:#64748b;
+}
+
+.welcome-badge{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+}
+
+.welcome-badge span{
+    font-size:18px;
+    font-weight:700;
+    color:#2563eb;
+}
+
+.welcome-badge small{
+    margin-top:8px;
+    background:#dcfce7;
+    color:#15803d;
+    padding:6px 14px;
+    border-radius:30px;
+    font-weight:600;
+}
+
+/* ===========================
+   Layout
+=========================== */
+
+.dashboard-top{
+    display:grid;
+    grid-template-columns:2fr 1fr;
+    gap:25px;
+}
+
+.dashboard-bottom{
+    display:grid;
+    grid-template-columns:2fr 1fr;
+    gap:25px;
+}
+
+.dashboard-left,
+.dashboard-right{
+    display:flex;
+    flex-direction:column;
+    gap:25px;
+}
+
+/* ===========================
+   Shared Card
+=========================== */
+
+.card{
+    background:#fff;
+    border-radius:18px;
+    padding:25px;
+    box-shadow:0 10px 25px rgba(0,0,0,.05);
+}
+
+.section-header{
+    margin-bottom:20px;
+}
+
+.section-header h2{
+    margin:0;
+    font-size:22px;
+    color:#1e293b;
+}
+
+/* ===========================
+   Subscription Overview
+=========================== */
+
+.overview-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:18px;
+}
+
+.overview-item{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    background:#f8fafc;
+    border-radius:15px;
+    padding:18px;
+    transition:.25s;
+}
+
+.overview-item:hover{
+    transform:translateY(-3px);
+}
+
+.overview-icon{
+    font-size:22px;
+    color:#2563eb;
+}
+
+.overview-icon.success{
+    color:#16a34a;
+}
+
+.overview-icon.warning{
+    color:#f59e0b;
+}
+
+.overview-item span{
+    color:#64748b;
+    font-size:14px;
+}
+
+.overview-item h3{
+    margin-top:5px;
+    color:#1e293b;
+}
+
+/* ===========================
+   Billing Summary
+=========================== */
+
+.billing-grid{
+    display:grid;
+    gap:18px;
+}
+
+.billing-stat-card{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    background:#f8fafc;
+    padding:18px;
+    border-radius:15px;
+    transition:.25s;
+}
+
+.billing-stat-card:hover{
+    transform:translateY(-3px);
+}
+
+.billing-icon{
+    width:50px;
+    height:50px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:20px;
+}
+
+.primary{
+    background:#2563eb;
+}
+
+.info{
+    background:#0ea5e9;
+}
+
+.success{
+    background:#16a34a;
+}
+
+.warning{
+    background:#f59e0b;
+}
+
+/* ===========================
+   Quick Actions
+=========================== */
+
+.action-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+}
+
+.action-card{
+    background:#f8fafc;
+    border-radius:18px;
+    padding:22px;
+    cursor:pointer;
+    transition:.3s;
+    border:1px solid transparent;
+}
+
+.action-card:hover{
+    transform:translateY(-5px);
+    border-color:#2563eb;
+}
+
+.action-icon{
+    width:55px;
+    height:55px;
+    background:#2563eb;
+    color:#fff;
+    border-radius:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    margin-bottom:18px;
+}
+
+.action-card h3{
+    margin-bottom:8px;
+    color:#1e293b;
+}
+
+.action-card p{
+    color:#64748b;
+    font-size:14px;
+}
+
+/* ===========================
+   Invoice Table
+=========================== */
+
+.invoice-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.invoice-table th{
+    text-align:left;
+    padding:16px;
+    background:#f8fafc;
+    color:#64748b;
+}
+
+.invoice-table td{
+    padding:18px 16px;
+    border-bottom:1px solid #edf2f7;
+}
+
+.invoice-table tr:hover{
+    background:#fafafa;
+}
+
+.status{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 12px;
+    border-radius:30px;
+    font-size:13px;
+    font-weight:600;
+}
+
+.status.paid{
+    background:#dcfce7;
+    color:#15803d;
+}
+
+.status.pending{
+    background:#fef3c7;
+    color:#b45309;
+}
+
+.status.failed{
+    background:#fee2e2;
+    color:#dc2626;
+}
+
+.download-btn{
+    border:none;
+    background:#2563eb;
+    color:#fff;
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.download-btn:hover{
+    background:#1d4ed8;
+}
+
+/* ===========================
+   Timeline
+=========================== */
+
+.timeline{
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+}
+
+.timeline-item{
+    display:flex;
+    gap:18px;
+}
+
+.timeline-icon{
+    width:45px;
+    height:45px;
+    border-radius:50%;
+    background:#2563eb;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-shrink:0;
+}
+
+.timeline-content h4{
+    margin:0;
+    color:#1e293b;
+}
+
+.timeline-content p{
+    margin:8px 0;
+    color:#64748b;
+    font-size:14px;
+}
+
+.timeline-content span{
+    color:#94a3b8;
+    font-size:13px;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+@media(max-width:1200px){
+
+    .dashboard-top,
+    .dashboard-bottom{
+        grid-template-columns:1fr;
+    }
+
+    .action-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+}
+
+@media(max-width:768px){
+
+    .dashboard{
+        padding:20px;
+    }
+
+    .welcome-banner{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:20px;
+    }
+
+    .welcome-badge{
+        align-items:flex-start;
+    }
+
+    .overview-grid{
+        grid-template-columns:1fr;
+    }
+
+    .action-grid{
+        grid-template-columns:1fr;
+    }
+
+    .invoice-table{
+        display:block;
+        overflow-x:auto;
+        white-space:nowrap;
+    }
+
+}
