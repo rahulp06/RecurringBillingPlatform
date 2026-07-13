@@ -361,6 +361,19 @@ export const deleteInvoice = async (id) =>
     })
 ).json();
 
+export const generateInvoices = async (taxRate = 0.0) => {
+    const res = await fetch(`${BASE_URL}/invoices/generate?tax_rate=${taxRate}`, {
+        method: "POST",
+        headers: headers(false)
+    });
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to generate invoices");
+    }
+    return await res.json();
+};
+
+
 /* ---------------- PAYMENTS ---------------- */
 
 export const getPayments = async () =>

@@ -359,6 +359,10 @@ def create_subscription(db: Session, subscription: SubscriptionCreate):
 
         db.add(payment)
 
+        # Transition billing cycle to completed only if payment is confirmed successful
+        if payment.status == "paid":
+            billing_cycle.status = "completed"
+
         # -----------------------------
         # Stage Audit Logs
         # -----------------------------
@@ -797,6 +801,76 @@ def generate_billing_cycle(
 # INVOICE CRUD
 # ==========================
 
+def generate_bulk_invoices(db: Session, tax_rate: float = 0.0):
+    import random
+    subscriptions = (
+        db.query(Subscription)
+        .filter(Subscription.status.in_(["active", "trial"]))
+        .all()
+    )
+
+    generated_invoices = []
+    today = date.today()
+    today_str = today.strftime('%Y%m%d')
+
+    for sub in subscriptions:
+        plan = db.query(Plan).filter(Plan.id == sub.plan_id).first()
+        if not plan:
+            continue
+
+        cycles = db.query(BillingCycle).filter(BillingCycle.subscription_id == sub.id).all()
+
+        for cycle in cycles:
+            existing_invoice = (
+                db.query(Invoice)
+                .filter(
+                    Invoice.subscription_id == sub.id,
+                    Invoice.customer_id == sub.customer_id,
+                    Invoice.invoice_date == cycle.cycle_start_date,
+                    Invoice.due_date == cycle.cycle_end_date
+                )
+                .first()
+            )
+
+            if not existing_invoice:
+                suffix = f"{cycle.id:04d}" if cycle.id else f"{random.randint(1000, 9999)}"
+                inv_num = f"INV-{today_str}-{suffix}"
+
+                subtotal = plan.price
+                tax_amount = round(subtotal * tax_rate, 2)
+                total_amount = round(subtotal + tax_amount, 2)
+
+                invoice = Invoice(
+                    invoice_number=inv_num,
+                    subscription_id=sub.id,
+                    customer_id=sub.customer_id,
+                    invoice_date=cycle.cycle_start_date,
+                    due_date=cycle.cycle_end_date,
+                    subtotal=subtotal,
+                    tax_amount=tax_amount,
+                    total_amount=total_amount,
+                    status="unpaid"
+                )
+
+                db.add(invoice)
+                db.flush()
+
+                log_audit(
+                    db,
+                    "invoice",
+                    invoice.id,
+                    "Invoice Generated"
+                )
+
+                generated_invoices.append(invoice)
+
+    if generated_invoices:
+        db.commit()
+        for inv in generated_invoices:
+            db.refresh(inv)
+
+    return generated_invoices
+
 def create_invoice(
     db: Session,
     invoice: InvoiceCreate
@@ -965,6 +1039,19 @@ def create_payment(
     db.add(db_payment)
 
     invoice.status = "paid"
+
+    if db_payment.status == "paid":
+        billing_cycle = (
+            db.query(BillingCycle)
+            .filter(
+                BillingCycle.subscription_id == invoice.subscription_id,
+                BillingCycle.cycle_start_date == invoice.invoice_date,
+                BillingCycle.cycle_end_date == invoice.due_date
+            )
+            .first()
+        )
+        if billing_cycle:
+            billing_cycle.status = "completed"
 
     db.commit()
 

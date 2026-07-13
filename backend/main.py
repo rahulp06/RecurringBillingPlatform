@@ -50,6 +50,7 @@ from backend.crud import (
     update_billing_cycle,
     delete_billing_cycle,
     create_invoice,
+    generate_bulk_invoices,
     get_invoices,
     get_invoice,
     update_invoice,
@@ -711,6 +712,28 @@ def generate_billing_cycle_api(
 # ==========================================================
 # INVOICE CRUD
 # ==========================================================
+
+@app.post("/invoices/generate", tags=["Invoices"])
+def generate_invoices_api(
+    tax_rate: float = 0.0,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    if not (0.0 <= tax_rate <= 100.0):
+        raise HTTPException(
+            status_code=400,
+            detail="Tax rate must be between 0 and 100"
+        )
+
+    try:
+        tax_decimal = tax_rate / 100.0
+        return generate_bulk_invoices(db, tax_rate=tax_decimal)
+    except Exception as e:
+        print(f"Error generating bulk invoices: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during bulk invoice generation"
+        )
 
 @app.post("/invoices", tags=["Invoices"])
 def add_invoice(
