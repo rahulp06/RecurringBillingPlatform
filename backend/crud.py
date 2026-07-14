@@ -468,11 +468,66 @@ def cancel_subscription(db: Session, subscription_id: int):
 
     return subscription
 
+def calculate_proration(
+    subscription,
+    current_plan,
+    new_plan
+):
+    """
+    Returns a dict with all proration figures without writing anything to DB.
+    Handles same-plan, zero-remaining-days, trial, monthly, and annual cycles.
+    """
+    today = date.today()
+
+    cycle_start = subscription.start_date
+    cycle_end   = subscription.end_date
+
+    # Total days in the current billing cycle (guard against 0)
+    total_days = (cycle_end - cycle_start).days
+    if total_days <= 0:
+        total_days = 30  # safe default for edge cases
+
+    # Days already consumed; clamp between 0 and total_days
+    days_used = max(0, min((today - cycle_start).days, total_days))
+    remaining_days = total_days - days_used
+
+    # Proration amounts (rounded to 2 decimal places)
+    credit_amount = round(current_plan.price * (remaining_days / total_days), 2)
+    charge_amount = round(new_plan.price     * (remaining_days / total_days), 2)
+    amount_due    = round(charge_amount - credit_amount, 2)
+
+    return {
+        "subscription_id":    subscription.id,
+        "current_plan_id":    current_plan.id,
+        "current_plan_name":  current_plan.name,
+        "new_plan_id":        new_plan.id,
+        "new_plan_name":      new_plan.name,
+        "billing_interval":   current_plan.billing_interval,
+        "total_days":         total_days,
+        "days_used":          days_used,
+        "remaining_days":     remaining_days,
+        "current_plan_price": current_plan.price,
+        "new_plan_price":     new_plan.price,
+        "credit_amount":      credit_amount,
+        "charge_amount":      charge_amount,
+        "amount_due":         amount_due,
+    }
+
+
 def change_plan(
     db: Session,
     subscription_id: int,
     new_plan_id: int
 ):
+    """
+    Changes the subscription plan with proration:
+    1. Validates subscription and new plan exist
+    2. Guards against same-plan change
+    3. Calculates proration credit/charge
+    4. Creates a proration invoice adjustment (skipped if 0 remaining days)
+    5. Updates subscription.plan_id
+    6. Stores audit log with old/new plan names
+    """
 
     subscription = (
         db.query(Subscription)
@@ -483,28 +538,83 @@ def change_plan(
     if subscription is None:
         raise ValueError("Subscription not found")
 
-    plan = (
+    current_plan = (
+        db.query(Plan)
+        .filter(Plan.id == subscription.plan_id)
+        .first()
+    )
+
+    new_plan = (
         db.query(Plan)
         .filter(Plan.id == new_plan_id)
         .first()
     )
 
-    if plan is None:
+    if new_plan is None:
         raise ValueError("Plan not found")
 
+    # Guard: same plan
+    if subscription.plan_id == new_plan_id:
+        raise ValueError("Subscription is already on this plan")
+
+    # --- Proration calculation ---
+    proration = calculate_proration(subscription, current_plan, new_plan)
+
+    # --- Create proration invoice (only if there are remaining days in the cycle) ---
+    if proration["remaining_days"] > 0:
+        today = date.today()
+        timestamp_str = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+        inv_num = f"PRORTN-{timestamp_str}-{subscription.id}"
+
+        proration_invoice = Invoice(
+            invoice_number=inv_num,
+            subscription_id=subscription.id,
+            customer_id=subscription.customer_id,
+            invoice_date=today,
+            due_date=subscription.end_date,
+            subtotal=proration["charge_amount"],
+            tax_amount=0.0,
+            total_amount=proration["amount_due"],
+            status="unpaid"
+        )
+
+        db.add(proration_invoice)
+        db.flush()   # get proration_invoice.id before commit
+
+        # Ensure correct plan displays in audit log for proration modal details
+        current_plan_display = current_plan.name if current_plan.name.lower().endswith("plan") else f"{current_plan.name} Plan"
+        new_plan_display = new_plan.name if new_plan.name.lower().endswith("plan") else f"{new_plan.name} Plan"
+
+        log_audit(
+            db,
+            "invoice",
+            proration_invoice.id,
+            "Proration Invoice Generated",
+            old_value=f"Unused {current_plan_display} Credit|{proration['credit_amount']}",
+            new_value=f"{new_plan_display} Charge|{proration['charge_amount']}"
+        )
+
+    # --- Update subscription ---
+    old_plan_name = current_plan.name if current_plan else str(subscription.plan_id)
     subscription.plan_id = new_plan_id
     subscription.status_changed_at = datetime.utcnow()
 
-    db.commit()
-    db.refresh(subscription)
+    # --- Audit log for plan change ---
     log_audit(
         db,
         "subscription",
         subscription.id,
-        "Plan Changed"
+        "Plan Changed",
+        old_value=old_plan_name,
+        new_value=new_plan.name,
+        performed_by="Customer"
     )
 
+    db.commit()
+    db.refresh(subscription)
+
     return subscription
+
 
 def get_subscriptions(db: Session, current_user: Customer):
 
@@ -574,7 +684,7 @@ def delete_subscription(
         "message": "Subscription deleted successfully"
     }
 
-def change_my_plan(db, current_user, plan_id):
+def change_my_plan(db, current_user, new_plan_id):
 
     subscription = (
         db.query(Subscription)
@@ -590,8 +700,57 @@ def change_my_plan(db, current_user, plan_id):
     return change_plan(
         db,
         subscription.id,
-        plan_id
+        new_plan_id
     )
+
+
+def get_proration_preview_for_customer(db, current_user, new_plan_id):
+    """Returns a proration preview dict for the customer's active subscription."""
+    subscription = (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == current_user.id
+        )
+        .first()
+    )
+
+    if not subscription:
+        raise ValueError("No active subscription found.")
+
+    return get_proration_preview(db, subscription.id, new_plan_id)
+
+
+def get_proration_preview(db, subscription_id, new_plan_id):
+    """Returns a proration preview dict without writing to DB."""
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    current_plan = (
+        db.query(Plan)
+        .filter(Plan.id == subscription.plan_id)
+        .first()
+    )
+
+    new_plan = (
+        db.query(Plan)
+        .filter(Plan.id == new_plan_id)
+        .first()
+    )
+
+    if new_plan is None:
+        raise ValueError("Plan not found")
+
+    if subscription.plan_id == new_plan_id:
+        raise ValueError("Subscription is already on this plan")
+
+    return calculate_proration(subscription, current_plan, new_plan)
+
 
 def pause_my_subscription(db, current_user):
 

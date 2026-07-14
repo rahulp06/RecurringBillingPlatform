@@ -292,7 +292,13 @@ function BillingHistory() {
 
                                         <td>
 
-                                            ₹{invoice.total_amount}
+                                            {invoice.total_amount < 0 ? (
+                                                <span style={{ color: "#16a34a", fontWeight: "600" }}>
+                                                    ₹{Math.abs(invoice.total_amount).toFixed(2)} (Credit)
+                                                </span>
+                                            ) : (
+                                                `₹${Number(invoice.total_amount || 0).toFixed(2)}`
+                                            )}
 
                                         </td>
 

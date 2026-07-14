@@ -5,6 +5,7 @@ import {
     FaCreditCard,
     FaBox,
     FaLayerGroup,
+    FaExchangeAlt,
 } from "react-icons/fa";
 import Card from "../../components/common/Card";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
@@ -17,6 +18,7 @@ import {
     pauseMySubscription,
     resumeMySubscription,
     cancelMySubscription,
+    getMyPlanHistory,
 } from "../../services/api";
 
 import "../../styles/customer/customer-subscription.css";
@@ -25,24 +27,36 @@ function MySubscription() {
 
     const [subscription, setSubscription] = useState(null);
     const [plans, setPlans] = useState([]);
+    const [planChanges, setPlanChanges] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
-const [pendingAction, setPendingAction] = useState(null);
+    const [pendingAction, setPendingAction] = useState(null);
+
     const loadData = async () => {
 
         try {
 
-            const [subscriptions, plansData] = await Promise.all([
+            const [subscriptions, plansData, historyData] = await Promise.all([
                 getSubscriptions(),
                 getPlans(),
+                getMyPlanHistory().catch(() => []),
             ]);
 
             setPlans(plansData);
 
             if (subscriptions.length > 0) {
 
-                setSubscription(subscriptions[0]);
+                const sub = subscriptions[0];
+                setSubscription(sub);
+
+                if (Array.isArray(historyData)) {
+                    // Sort descending by created_at just in case (already ordered by backend)
+                    const changes = [...historyData].sort(
+                        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+                    );
+                    setPlanChanges(changes);
+                }
 
             }
 
@@ -149,12 +163,13 @@ const [pendingAction, setPendingAction] = useState(null);
                     <p>
 
                         View and manage your active subscription.
-Pause, resume or cancel anytime.
+                        Pause, resume or cancel anytime.
 
                     </p>
 
                 </div>
 
+                {/* ── Info cards ── */}
                 <div className="subscription-grid">
 
                     <div className="info-card">
@@ -222,94 +237,172 @@ Pause, resume or cancel anytime.
                     </div>
 
                 </div>
+
+                {/* ── Action buttons ── */}
                 <Card>
 
-                <div className="subscription-actions">
+                    <div className="subscription-actions">
 
-                    {(subscription.status === "active" ||
-                        subscription.status === "trial") && (
+                        {(subscription.status === "active" ||
+                            subscription.status === "trial") && (
 
-                        <>
+                            <>
+                                <button
+                                    className="pause-btn"
+                                    disabled={actionLoading}
+                                    onClick={() => {
+                                        setPendingAction("pause");
+                                        setConfirmOpen(true);
+                                    }}
+                                >
+
+                                    Pause
+
+                                </button>
+
+                                <button
+                                    className="cancel-btn"
+                                    disabled={actionLoading}
+                                    onClick={() => {
+                                        setPendingAction("cancel");
+                                        setConfirmOpen(true);
+                                    }}
+                                >
+
+                                    Cancel
+
+                                </button>
+
+                            </>
+
+                        )}
+
+                        {subscription.status === "paused" && (
+
                             <button
-                                className="pause-btn"
+                                className="resume-btn"
                                 disabled={actionLoading}
                                 onClick={() => {
-    setPendingAction("pause");
-    setConfirmOpen(true);
-}}
+                                    setPendingAction("resume");
+                                    setConfirmOpen(true);
+                                }}
                             >
 
-                                Pause
+                                Resume
 
                             </button>
 
-                            <button
-                                className="cancel-btn"
-                                disabled={actionLoading}
-                                onClick={() => {
-    setPendingAction("cancel");
-    setConfirmOpen(true);
-}}
-                            >
+                        )}
 
-                                Cancel
+                        {subscription.status === "cancelled" && (
 
-                            </button>
+                            <div className="cancelled-message">
 
-                        </>
+                                Subscription Cancelled
 
-                    )}
+                            </div>
 
-                    {subscription.status === "paused" && (
+                        )}
 
-                        <button
-                            className="resume-btn"
-                            disabled={actionLoading}
-                            onClick={() => {
-    setPendingAction("resume");
-    setConfirmOpen(true);
-}}
-                        >
+                    </div>
 
-                            Resume
+                </Card>
 
-                        </button>
+                {/* ── Plan Change History ── */}
+                {planChanges.length > 0 && (
 
-                    )}
+                    <div className="plan-change-history">
 
-                    {subscription.status === "cancelled" && (
+                        <div className="plan-change-history-header">
 
-                        <div className="cancelled-message">
+                            <FaExchangeAlt className="history-icon" />
 
-                            Subscription Cancelled
+                            <h2>Previous Plan Changes</h2>
 
                         </div>
 
-                    )}
+                        <div className="plan-change-list">
 
-                </div>
-                </Card>
+                            {planChanges.map((log) => {
+
+                                const changedDate = new Date(
+                                    log.created_at
+                                ).toLocaleDateString("en-GB", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                });
+
+                                return (
+
+                                    <div
+                                        key={log.id}
+                                        className="plan-change-item"
+                                    >
+
+                                        <div className="plan-change-icon">
+                                            <FaExchangeAlt />
+                                        </div>
+
+                                        <div className="plan-change-details">
+
+                                            <div className="plan-change-route">
+
+                                                <span className="old-plan">
+                                                    {log.old_value}
+                                                </span>
+
+                                                <span className="route-arrow">→</span>
+
+                                                <span className="new-plan">
+                                                    {log.new_value}
+                                                </span>
+
+                                            </div>
+
+                                            <div className="plan-change-meta">
+
+                                                <span className="change-date">
+                                                    {changedDate}
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                );
+
+                            })}
+
+                        </div>
+
+                    </div>
+
+                )}
 
             </div>
+
             <ConfirmationModal
-    open={confirmOpen}
-    title={
-        pendingAction === "pause"
-            ? "Pause Subscription?"
-            : pendingAction === "resume"
-            ? "Resume Subscription?"
-            : "Cancel Subscription?"
-    }
-    description="Are you sure you want to continue?"
-    confirmText="Yes"
-    cancelText="No"
-    loading={actionLoading}
-    onClose={() => setConfirmOpen(false)}
-    onConfirm={async () => {
-        await handleAction(pendingAction);
-        setConfirmOpen(false);
-    }}
-/>
+                open={confirmOpen}
+                title={
+                    pendingAction === "pause"
+                        ? "Pause Subscription?"
+                        : pendingAction === "resume"
+                        ? "Resume Subscription?"
+                        : "Cancel Subscription?"
+                }
+                description="Are you sure you want to continue?"
+                confirmText="Yes"
+                cancelText="No"
+                loading={actionLoading}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={async () => {
+                    await handleAction(pendingAction);
+                    setConfirmOpen(false);
+                }}
+            />
 
         </CustomerLayout>
 

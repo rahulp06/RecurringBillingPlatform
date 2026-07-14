@@ -131,3 +131,97 @@
 
 }
 
+/* ── Plan Change History ── */
+
+.plan-change-history{
+    margin-top:32px;
+    background:#fff;
+    border-radius:18px;
+    padding:28px;
+    box-shadow:0 10px 30px rgba(0,0,0,.05);
+}
+
+.plan-change-history-header{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:20px;
+}
+
+.plan-change-history-header h2{
+    margin:0;
+    font-size:18px;
+    color:#1e293b;
+}
+
+.history-icon{
+    font-size:18px;
+    color:#2563eb;
+}
+
+.plan-change-list{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.plan-change-item{
+    display:flex;
+    align-items:flex-start;
+    gap:16px;
+    background:#f8fafc;
+    border-radius:14px;
+    padding:16px 20px;
+    border-left:3px solid #2563eb;
+}
+
+.plan-change-icon{
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    background:#dbeafe;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#2563eb;
+    flex-shrink:0;
+    font-size:14px;
+}
+
+.plan-change-details{
+    flex:1;
+}
+
+.plan-change-route{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:15px;
+    font-weight:600;
+    color:#1e293b;
+}
+
+.old-plan{
+    color:#64748b;
+}
+
+.route-arrow{
+    color:#94a3b8;
+    font-size:16px;
+}
+
+.new-plan{
+    color:#2563eb;
+}
+
+.plan-change-meta{
+    margin-top:6px;
+    display:flex;
+    gap:14px;
+    align-items:center;
+}
+
+.change-date{
+    font-size:13px;
+    color:#64748b;
+}

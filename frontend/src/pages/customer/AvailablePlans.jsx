@@ -10,7 +10,8 @@ import {
     getSubscriptions,
     changeMyPlan,
     createSubscription,
-    getMe
+    getMe,
+    previewMyPlanProration,
 } from "../../services/api";
 
 import "../../styles/customer/customer-plans.css";
@@ -23,6 +24,8 @@ function AvailablePlans() {
     const [loading, setLoading] = useState(true);
 
     const [selectedPlan, setSelectedPlan] = useState(null);
+    const [prorateInfo, setProrateInfo] = useState(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [updating, setUpdating] = useState(false);
 
@@ -61,47 +64,84 @@ function AvailablePlans() {
 
     }, []);
 
-    const handleChangePlan = async () => {
+    /* -----------------------------------------------
+       Open modal with proration preview pre-fetched
+    ----------------------------------------------- */
+    const openChangePlanModal = async (plan) => {
 
-    try {
+        setSelectedPlan(plan);
+        setProrateInfo(null);
+        setModalOpen(true);           // open modal immediately (shows spinner)
+        setPreviewLoading(true);
 
-        setUpdating(true);
+        try {
 
-        const response = await changeMyPlan(selectedPlan.id);
+            const preview = await previewMyPlanProration(plan.id);
+            setProrateInfo(preview);
 
-        if (response.detail) {
+        } catch (err) {
 
-            toast.error(response.detail);
+            // Don't close the modal — still let the user confirm without the breakdown
+            console.warn("Proration preview failed:", err.message);
+            toast.warn("Could not load proration details. You can still proceed.");
 
-            return;
+        } finally {
+
+            setPreviewLoading(false);
 
         }
 
-        toast.success("Plan changed successfully!");
+    };
 
-        await loadData();
+    const handleChangePlan = async () => {
 
+        try {
+
+            setUpdating(true);
+
+            const response = await changeMyPlan(selectedPlan.id);
+
+            if (response.detail) {
+
+                toast.error(response.detail);
+
+                return;
+
+            }
+
+            toast.success("Plan changed successfully!");
+
+            await loadData();
+
+            setModalOpen(false);
+
+            setSelectedPlan(null);
+
+            setProrateInfo(null);
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            toast.error("Unable to change plan.");
+
+        }
+
+        finally {
+
+            setUpdating(false);
+
+        }
+
+    };
+
+    const closeModal = () => {
         setModalOpen(false);
-
         setSelectedPlan(null);
-
-    }
-
-    catch (err) {
-
-        console.error(err);
-
-        toast.error("Unable to change plan.");
-
-    }
-
-    finally {
-
-        setUpdating(false);
-
-    }
-
-};
+        setProrateInfo(null);
+    };
 
     if (loading) {
 
@@ -201,83 +241,81 @@ function AvailablePlans() {
                                 </ul>
 
                                 <button
-    className={
-        isCurrent
-            ? "current-btn"
-            : "subscribe-btn"
-    }
-    disabled={isCurrent || updating}
-    onClick={async () => {
+                                    className={
+                                        isCurrent
+                                            ? "current-btn"
+                                            : "subscribe-btn"
+                                    }
+                                    disabled={isCurrent || updating || previewLoading}
+                                    onClick={async () => {
 
-        if (isCurrent) return;
+                                        if (isCurrent) return;
 
-        // -----------------------------
-        // First subscription
-        // -----------------------------
-        if (!currentSubscription) {
+                                        // -----------------------------
+                                        // First subscription
+                                        // -----------------------------
+                                        if (!currentSubscription) {
 
-            try {
+                                            try {
 
-                setUpdating(true);
+                                                setUpdating(true);
 
-                const user = await getMe();
+                                                const user = await getMe();
 
-                const response = await createSubscription({
+                                                const response = await createSubscription({
 
-                    customer_id: user.id,
-                    plan_id: plan.id
+                                                    customer_id: user.id,
+                                                    plan_id: plan.id
 
-                });
+                                                });
 
-                if (response.detail) {
+                                                if (response.detail) {
 
-                    toast.error(response.detail);
+                                                    toast.error(response.detail);
 
-                    return;
+                                                    return;
 
-                }
+                                                }
 
-                toast.success("Subscription created successfully!");
+                                                toast.success("Subscription created successfully!");
 
-                await loadData();
+                                                await loadData();
 
-            }
+                                            }
 
-            catch (err) {
+                                            catch (err) {
 
-                console.error(err);
+                                                console.error(err);
 
-                toast.error("Unable to subscribe.");
+                                                toast.error("Unable to subscribe.");
 
-            }
+                                            }
 
-            finally {
+                                            finally {
 
-                setUpdating(false);
+                                                setUpdating(false);
 
-            }
+                                            }
 
-        }
+                                        }
 
-        // -----------------------------
-        // Existing subscription
-        // -----------------------------
-        else {
+                                        // -----------------------------
+                                        // Existing subscription — fetch preview then open modal
+                                        // -----------------------------
+                                        else {
 
-            setSelectedPlan(plan);
+                                            await openChangePlanModal(plan);
 
-            setModalOpen(true);
+                                        }
 
-        }
+                                    }}
+                                >
 
-    }}
->
+                                    {isCurrent
+                                        ? "Current Plan"
+                                        : "Subscribe"}
 
-    {isCurrent
-        ? "Current Plan"
-        : "Subscribe"}
-
-</button>
+                                </button>
 
                             </div>
 
@@ -297,15 +335,10 @@ function AvailablePlans() {
                         p => p.id === currentSubscription?.plan_id
                     )
                 }
-                onClose={() => {
-
-                    setModalOpen(false);
-
-                    setSelectedPlan(null);
-
-                }}
+                prorateInfo={previewLoading ? null : prorateInfo}
+                onClose={closeModal}
                 onConfirm={handleChangePlan}
-                loading={updating}
+                loading={updating || previewLoading}
             />
 
         </CustomerLayout>

@@ -80,7 +80,24 @@ class SubscriptionResponse(BaseModel):
         from_attributes = True
 
 class ChangePlanRequest(BaseModel):
-    plan_id: int
+    new_plan_id: int
+
+
+class ProrationPreviewResponse(BaseModel):
+    subscription_id: int
+    current_plan_id: int
+    current_plan_name: str
+    new_plan_id: int
+    new_plan_name: str
+    billing_interval: str
+    total_days: int
+    days_used: int
+    remaining_days: int
+    current_plan_price: float
+    new_plan_price: float
+    credit_amount: float
+    charge_amount: float
+    amount_due: float
 
 # ==========================
 # BILLING CYCLE

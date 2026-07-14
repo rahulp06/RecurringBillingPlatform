@@ -129,19 +129,9 @@ function Invoices(){
                     
                     plan_interval:plan.billing_interval || "",
 
-                    amount:new Intl.NumberFormat(
-
-    "en-IN",
-
-    {
-
-        style:"currency",
-
-        currency:"INR"
-
-    }
-
-).format(invoice.total_amount),
+                    amount: invoice.total_amount < 0
+                        ? `${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Math.abs(invoice.total_amount))} (Credit)`
+                        : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(invoice.total_amount),
 
                     status:invoice.status,
 

@@ -104,3 +104,90 @@
     }
 
 }
+
+/* ── Proration breakdown ── */
+
+.plan-summary{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:center;
+    gap:12px;
+    margin-bottom:22px;
+}
+
+.plan-arrow{
+    font-size:22px;
+    color:#94a3b8;
+    text-align:center;
+}
+
+.plan-summary small{
+    display:block;
+    color:#94a3b8;
+    font-size:12px;
+    margin-top:4px;
+}
+
+.proration-breakdown{
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:24px;
+}
+
+.proration-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 0;
+    font-size:14px;
+    color:#475569;
+}
+
+.proration-divider{
+    height:1px;
+    background:#e2e8f0;
+    margin:6px 0;
+}
+
+.proration-row.credit span:last-child{
+    color:#16a34a;
+    font-weight:600;
+}
+
+.proration-row.charge span:last-child{
+    color:#d97706;
+    font-weight:600;
+}
+
+.proration-row.total{
+    font-weight:700;
+    font-size:15px;
+    color:#1e293b;
+    padding-top:10px;
+}
+
+.amount-due{
+    color:#2563eb;
+    font-size:18px;
+}
+
+.amount-credit{
+    color:#16a34a;
+    font-size:18px;
+}
+
+.proration-note{
+    margin:10px 0 0;
+    font-size:12px;
+    color:#64748b;
+    font-style:italic;
+    border-top:1px dashed #e2e8f0;
+    padding-top:10px;
+}
+
+.confirm-btn:disabled{
+    opacity:.65;
+    cursor:not-allowed;
+}

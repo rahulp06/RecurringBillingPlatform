@@ -111,37 +111,81 @@ function InvoiceDetailModal({
                 </div>
 
                 <div className="invoice-items-table" style={{ marginBottom: "25px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ borderBottom: "2px solid #cbd5e1", textAlign: "left" }}>
-                                <th style={{ padding: "8px 0", color: "#475569", fontSize: "13px" }}>Plan Item</th>
-                                <th style={{ padding: "8px 0", color: "#475569", fontSize: "13px" }}>Interval</th>
-                                <th style={{ padding: "8px 0", textAlign: "right", color: "#475569", fontSize: "13px" }}>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                                <td style={{ padding: "12px 0", fontSize: "14px", fontWeight: "500" }}>{planName || "Subscription Plan"}</td>
-                                <td style={{ padding: "12px 0", fontSize: "14px", color: "#64748b" }}>{planInterval || "Monthly"}</td>
-                                <td style={{ padding: "12px 0", textAlign: "right", fontSize: "14px", fontWeight: "600" }}>₹{invoice.subtotal}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    {invoice.is_proration ? (
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                                <tr style={{ borderBottom: "2px solid #cbd5e1", textAlign: "left" }}>
+                                    <th style={{ padding: "8px 0", color: "#475569", fontSize: "13px" }}>Adjustment Item</th>
+                                    <th style={{ padding: "8px 0", textAlign: "right", color: "#475569", fontSize: "13px" }}>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                    <td style={{ padding: "12px 0", fontSize: "14px", fontWeight: "500" }}>{invoice.proration_credit_label || "Unused Plan Credit"}</td>
+                                    <td style={{ padding: "12px 0", textAlign: "right", fontSize: "14px", fontWeight: "600", color: "#16a34a" }}>-₹{Math.abs(invoice.proration_credit_amount || 0).toFixed(2)}</td>
+                                </tr>
+                                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                    <td style={{ padding: "12px 0", fontSize: "14px", fontWeight: "500" }}>{invoice.proration_charge_label || "New Plan Charge"}</td>
+                                    <td style={{ padding: "12px 0", textAlign: "right", fontSize: "14px", fontWeight: "600", color: "#d97706" }}>+₹{Math.abs(invoice.proration_charge_amount || 0).toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    ) : (
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                                <tr style={{ borderBottom: "2px solid #cbd5e1", textAlign: "left" }}>
+                                    <th style={{ padding: "8px 0", color: "#475569", fontSize: "13px" }}>Plan Item</th>
+                                    <th style={{ padding: "8px 0", color: "#475569", fontSize: "13px" }}>Interval</th>
+                                    <th style={{ padding: "8px 0", textAlign: "right", color: "#475569", fontSize: "13px" }}>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                                    <td style={{ padding: "12px 0", fontSize: "14px", fontWeight: "500" }}>{planName || "Subscription Plan"}</td>
+                                    <td style={{ padding: "12px 0", fontSize: "14px", color: "#64748b" }}>{planInterval || "Monthly"}</td>
+                                    <td style={{ padding: "12px 0", textAlign: "right", fontSize: "14px", fontWeight: "600" }}>₹{Number(invoice.subtotal || 0).toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 <div className="invoice-summary-section" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "15px", marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "14px", margin: "3px 0" }}>
-                        <span style={{ color: "#64748b" }}>Subtotal:</span>
-                        <span style={{ fontWeight: "500" }}>₹{invoice.subtotal}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "14px", margin: "3px 0" }}>
-                        <span style={{ color: "#64748b" }}>Tax Amount:</span>
-                        <span style={{ fontWeight: "500" }}>₹{invoice.tax_amount}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "16px", fontWeight: "bold", margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #cbd5e1" }}>
-                        <span>Total:</span>
-                        <span style={{ color: "#4f46e5" }}>₹{invoice.total_amount}</span>
-                    </div>
+                    {invoice.is_proration ? (
+                        <>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "250px", fontSize: "14px", margin: "3px 0" }}>
+                                <span style={{ color: "#64748b" }}>New Plan Charge:</span>
+                                <span style={{ fontWeight: "500" }}>₹{Math.abs(invoice.proration_charge_amount || 0).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "250px", fontSize: "14px", margin: "3px 0" }}>
+                                <span style={{ color: "#64748b" }}>Unused Plan Credit:</span>
+                                <span style={{ fontWeight: "500", color: "#16a34a" }}>-₹{Math.abs(invoice.proration_credit_amount || 0).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "250px", fontSize: "16px", fontWeight: "bold", margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #cbd5e1" }}>
+                                <span>{invoice.total_amount < 0 ? "Credit Applied:" : "Amount Due:"}</span>
+                                <span style={{ color: invoice.total_amount < 0 ? "#16a34a" : "#4f46e5" }}>
+                                    ₹{Math.abs(invoice.total_amount || 0).toFixed(2)}
+                                </span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "14px", margin: "3px 0" }}>
+                                <span style={{ color: "#64748b" }}>Subtotal:</span>
+                                <span style={{ fontWeight: "500" }}>₹{Number(invoice.subtotal || 0).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "14px", margin: "3px 0" }}>
+                                <span style={{ color: "#64748b" }}>Tax Amount:</span>
+                                <span style={{ fontWeight: "500" }}>₹{Number(invoice.tax_amount || 0).toFixed(2)}</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "16px", fontWeight: "bold", margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #cbd5e1" }}>
+                                <span>{invoice.total_amount < 0 ? "Credit Applied" : "Total"}:</span>
+                                <span style={{ color: invoice.total_amount < 0 ? "#16a34a" : "#4f46e5" }}>
+                                    ₹{Math.abs(invoice.total_amount || 0).toFixed(2)}
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="modal-actions invoice-detail-modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>

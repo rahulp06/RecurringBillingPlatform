@@ -24,7 +24,8 @@ from backend.schemas import (
     InvoiceCreate,
     PaymentCreate,
     AuditLogCreate,
-    ChangePlanRequest
+    ChangePlanRequest,
+    ProrationPreviewResponse
 )
 from backend.crud import (
     create_plan,
@@ -75,7 +76,9 @@ from backend.crud import (
     change_my_plan,
     pause_my_subscription,
     resume_my_subscription,
-    cancel_my_subscription
+    cancel_my_subscription,
+    get_proration_preview,
+    get_proration_preview_for_customer
 )
 from backend.security import (
     create_access_token, 
@@ -162,6 +165,63 @@ def require_admin(
         )
 
     return current_user
+
+
+def enrich_invoice(db: Session, invoice):
+    if invoice is None:
+        return None
+    inv_dict = {c.name: getattr(invoice, c.name) for c in invoice.__table__.columns}
+    inv_dict["is_proration"] = False
+    inv_dict["proration_credit_label"] = ""
+    inv_dict["proration_credit_amount"] = 0.0
+    inv_dict["proration_charge_label"] = ""
+    inv_dict["proration_charge_amount"] = 0.0
+
+    if invoice.invoice_number and invoice.invoice_number.startswith("PRORTN-"):
+        audit = db.query(AuditLog).filter(
+            AuditLog.entity_type == "invoice",
+            AuditLog.entity_id == invoice.id,
+            AuditLog.action == "Proration Invoice Generated"
+        ).first()
+
+        if audit:
+            try:
+                if "|" in audit.old_value and "|" in audit.new_value:
+                    credit_label, credit_val = audit.old_value.split("|")
+                    charge_label, charge_val = audit.new_value.split("|")
+                    inv_dict["is_proration"] = True
+                    inv_dict["proration_credit_label"] = credit_label
+                    inv_dict["proration_credit_amount"] = float(credit_val)
+                    inv_dict["proration_charge_label"] = charge_label
+                    inv_dict["proration_charge_amount"] = float(charge_val)
+                else:
+                    # Fallback for old/legacy log format
+                    inv_dict["is_proration"] = True
+                    inv_dict["proration_credit_label"] = "Unused Plan Credit"
+                    credit_val = 0.0
+                    if "₹" in audit.old_value:
+                        try:
+                            credit_val = float(audit.old_value.split("₹")[-1].strip())
+                        except:
+                            pass
+                    inv_dict["proration_credit_amount"] = credit_val
+
+                    charge_val = 0.0
+                    if "₹" in audit.new_value:
+                        try:
+                            parts = audit.new_value.split(",")
+                            for p in parts:
+                                if "Charge" in p:
+                                    charge_val = float(p.split("₹")[-1].strip())
+                        except:
+                            pass
+                    inv_dict["proration_charge_label"] = "New Plan Charge"
+                    inv_dict["proration_charge_amount"] = charge_val
+            except Exception as e:
+                print(f"Error parsing proration audit log: {e}")
+
+    return inv_dict
+
 
 @app.get("/", include_in_schema=False)
 def root():
@@ -440,12 +500,29 @@ def change_plan_api(
         return change_plan(
             db,
             subscription_id,
-            request.plan_id
+            request.new_plan_id
         )
 
     except ValueError as e:
         raise HTTPException(
-            status_code=404,
+            status_code=400,
+            detail=str(e)
+        )
+
+
+@app.get("/subscriptions/{subscription_id}/proration-preview", tags=["Subscriptions"])
+def proration_preview_api(
+    subscription_id: int,
+    new_plan_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    """Returns the proration breakdown before committing a plan change (admin)."""
+    try:
+        return get_proration_preview(db, subscription_id, new_plan_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
             detail=str(e)
         )
 
@@ -531,7 +608,7 @@ def customer_change_plan(
         return change_my_plan(
             db,
             current_user,
-            request.plan_id
+            request.new_plan_id
         )
 
     except ValueError as e:
@@ -540,7 +617,52 @@ def customer_change_plan(
             status_code=400,
             detail=str(e)
         )
-    
+
+
+@app.get("/my-subscription/proration-preview", tags=["Customer"])
+def customer_proration_preview(
+    new_plan_id: int,
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+    """Returns the proration breakdown before confirming a plan change (customer)."""
+    try:
+        return get_proration_preview_for_customer(
+            db,
+            current_user,
+            new_plan_id
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+
+@app.get("/my-subscription/plan-history", tags=["Customer"])
+def get_my_subscription_plan_history(
+    db: Session = Depends(get_db),
+    current_user: Customer = Depends(get_current_user)
+):
+    """Returns the plan change history for the customer's active subscription."""
+    subscription = db.query(Subscription).filter(
+        Subscription.customer_id == current_user.id
+    ).first()
+    if not subscription:
+        return []
+
+    logs = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "subscription",
+            AuditLog.entity_id == subscription.id,
+            AuditLog.action == "Plan Changed"
+        )
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
+    return logs
+
 @app.post("/my-subscription/pause", tags=["Customer"])
 def customer_pause_subscription(
     db: Session = Depends(get_db),
@@ -751,7 +873,8 @@ def read_invoices(
     admin: Customer = Depends(require_admin)
 ):
 
-    return get_invoices(db)
+    invoices = get_invoices(db)
+    return [enrich_invoice(db, inv) for inv in invoices]
 
 
 @app.get("/invoices/{invoice_id}", tags=["Invoices"])
@@ -769,7 +892,7 @@ def read_invoice(
             detail="Invoice not found"
         )
 
-    return invoice
+    return enrich_invoice(db, invoice)
 
 
 @app.put("/invoices/{invoice_id}", tags=["Invoices"])
@@ -821,10 +944,11 @@ def read_my_invoices(
     current_user: Customer = Depends(get_current_user)
 ):
 
-    return get_my_invoices(
+    invoices = get_my_invoices(
         db,
         current_user
     )
+    return [enrich_invoice(db, inv) for inv in invoices]
 
 # ==========================================================
 # PAYMENT CRUD

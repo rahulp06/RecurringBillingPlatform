@@ -112,17 +112,23 @@ function RecentInvoices({ invoices = [], loading }) {
                             <tr key={invoice.id}>
 
                                 <td>
-                                    INV-{invoice.id}
+                                    {invoice.invoice_number || `INV-${invoice.id}`}
                                 </td>
 
                                 <td>
                                     {new Date(
-                                        invoice.issue_date
+                                        invoice.invoice_date || invoice.issue_date
                                     ).toLocaleDateString()}
                                 </td>
 
                                 <td>
-                                    ₹{invoice.amount}
+                                    {(invoice.total_amount !== undefined ? invoice.total_amount : invoice.amount) < 0 ? (
+                                        <span style={{ color: "#16a34a", fontWeight: "600" }}>
+                                            ₹{Math.abs(invoice.total_amount !== undefined ? invoice.total_amount : invoice.amount).toFixed(2)} (Credit)
+                                        </span>
+                                    ) : (
+                                        `₹${Number(invoice.total_amount !== undefined ? invoice.total_amount : invoice.amount || 0).toFixed(2)}`
+                                    )}
                                 </td>
 
                                 <td>

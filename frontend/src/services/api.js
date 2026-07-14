@@ -469,13 +469,27 @@ export const changeMyPlan = async (planId) => {
             method: "POST",
             headers: headers(true),
             body: JSON.stringify({
-                plan_id: planId
+                new_plan_id: planId
             })
         }
     );
 
     return response.json();
 
+};
+
+export const previewMyPlanProration = async (planId) => {
+    const res = await fetch(
+        `${BASE_URL}/my-subscription/proration-preview?new_plan_id=${planId}`,
+        {
+            headers: headers(false)
+        }
+    );
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to load proration preview");
+    }
+    return res.json();
 };
 
 export const pauseMySubscription = async () =>
@@ -501,4 +515,12 @@ export const cancelMySubscription = async () =>
         headers: headers(true)
     })
 ).json();
+
+export const getMyPlanHistory = async () =>
+(
+    await fetch(`${BASE_URL}/my-subscription/plan-history`, {
+        headers: headers(false)
+    })
+).json();
+
 
