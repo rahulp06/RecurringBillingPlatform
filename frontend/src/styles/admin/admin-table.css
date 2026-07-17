@@ -405,3 +405,14 @@
     color:#6b7280;
 
 }
+
+.payment-btn{
+    color:#10b981;
+    transition:.2s ease;
+}
+
+.payment-btn:hover{
+    background:#ecfdf5;
+    color:#059669;
+    transform:translateY(-2px);
+}

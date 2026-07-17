@@ -226,3 +226,22 @@ class AuditLogResponse(AuditLogBase):
 
     class Config:
         from_attributes = True
+
+# ==========================
+# MOCK GATEWAY & WEBHOOK
+# ==========================
+
+class ProcessPaymentRequest(BaseModel):
+    invoice_id: int
+    amount: float
+
+class WebhookPayload(BaseModel):
+    event: str
+    invoice_id: int
+
+class ProcessPaymentResponse(BaseModel):
+    payment_reference: str
+    payment_status: str
+    invoice_status: str
+    subscription_status: str | None = None
+    message: str

@@ -8,7 +8,7 @@ import Loading from "../../components/common/Loading";
 import EmptyState from "../../components/common/EmptyState";
 import InvoiceModal from "../../components/admin/InvoiceModal";
 import InvoiceDetailModal from "../../components/common/InvoiceDetailModal";
-import PaymentModal from "../../components/admin/PaymentModal";
+import ProcessPaymentModal from "../../components/admin/ProcessPaymentModal";
 
 import {
     getInvoices,
@@ -22,7 +22,6 @@ import {
     processPayment
 } from "../../services/api";
 
-// Load all invoices from backend
 
 function Invoices(){
 
@@ -56,7 +55,7 @@ function Invoices(){
 
     // Process Payment Modal state
     const [processModalOpen, setProcessModalOpen] = useState(false);
-    const [processInvoiceData, setProcessInvoiceData] = useState(null);
+    const [processInvoice, setProcessInvoice] = useState(null);
 
     useEffect(()=>{
 
@@ -245,15 +244,8 @@ function Invoices(){
 
     };
 
-    const handleProcessPaymentAction = (invoiceRow) => {
-        setProcessInvoiceData({
-            invoice_id: invoiceRow.id,
-            payment_reference: `PAY-${Date.now()}`,
-            amount_raw: invoiceRow.total_amount,
-            payment_method: "Mock Gateway",
-            status: "pending",
-            payment_date: new Date().toISOString()
-        });
+    const handleProcessPayment = (invoice) => {
+        setProcessInvoice(invoice);
         setProcessModalOpen(true);
     };
 
@@ -484,7 +476,7 @@ function Invoices(){
                             onDelete={handleDelete}
  
                             onView={handleView}
-                            onProcessPayment={handleProcessPaymentAction}
+                            onProcessPayment={handleProcessPayment}
                         />
 
                     }
@@ -520,6 +512,18 @@ function Invoices(){
                 customerCompany={selectedInvoice?.customer_company}
                 planName={selectedInvoice?.plan_name}
                 planInterval={selectedInvoice?.plan_interval}
+            />
+
+            <ProcessPaymentModal
+                open={processModalOpen}
+                invoice={processInvoice}
+                onClose={() => {
+                    setProcessModalOpen(false);
+                    setProcessInvoice(null);
+                }}
+                onSuccess={() => {
+                    loadInvoices();
+                }}
             />
 
             {/* Generate Invoices Modal */}

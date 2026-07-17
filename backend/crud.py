@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
 from .models import Plan
-from .schemas import PlanCreate,SubscriptionCreate,BillingCycleCreate,InvoiceCreate,PaymentCreate,AuditLogCreate
+from .schemas import PlanCreate,SubscriptionCreate,BillingCycleCreate,InvoiceCreate,PaymentCreate,AuditLogCreate, CustomerSignup, ProcessPaymentRequest, WebhookPayload
 from .models import Customer, Subscription, BillingCycle,Invoice,Payment,AuditLog
-from .schemas import CustomerSignup
 from .security import hash_password,verify_password
 from datetime import date, timedelta, datetime
+import random
 
 def create_plan(db: Session, plan: PlanCreate):
     db_plan = Plan(**plan.model_dump())
@@ -1396,4 +1396,128 @@ def delete_audit_log(
 
     return {
         "message": "Audit Log deleted successfully"
+    }
+
+# ==========================
+# MOCK GATEWAY & WEBHOOK
+# ==========================
+
+def handle_payment_webhook(db: Session, payload: WebhookPayload):
+    invoice = db.query(Invoice).filter(Invoice.id == payload.invoice_id).first()
+    if not invoice:
+        return False
+
+    payment = (
+        db.query(Payment)
+        .filter(Payment.invoice_id == payload.invoice_id)
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+    subscription = None
+    if invoice.subscription_id:
+        subscription = db.query(Subscription).filter(Subscription.id == invoice.subscription_id).first()
+
+    from .services import change_subscription_status
+
+    if payload.event == "payment_success":
+        invoice.status = "paid"
+        if payment and payment.status != "paid":
+            payment.status = "paid"
+
+        if subscription:
+            try:
+                change_subscription_status(subscription, "active")
+            except ValueError:
+                pass
+
+        billing_cycle = (
+            db.query(BillingCycle)
+            .filter(
+                BillingCycle.subscription_id == invoice.subscription_id,
+                BillingCycle.cycle_start_date == invoice.invoice_date,
+                BillingCycle.cycle_end_date == invoice.due_date
+            )
+            .first()
+        )
+        if billing_cycle:
+            billing_cycle.status = "completed"
+
+        log_audit(db, "invoice", invoice.id, "Webhook: Payment Success")
+
+    elif payload.event == "payment_failed":
+        # Invoice status is NOT modified here; it remains in its current state (pending/unpaid)
+        
+        if payment and payment.status != "failed":
+            payment.status = "failed"
+
+        if subscription:
+            try:
+                change_subscription_status(subscription, "past_due")
+            except ValueError:
+                pass
+
+        log_audit(db, "invoice", invoice.id, "Webhook: Payment Failed")
+
+    elif payload.event == "payment_refunded":
+        # Invoice status is NOT modified here
+        
+        if payment and payment.status != "refunded":
+            payment.status = "refunded"
+            
+        log_audit(db, "invoice", invoice.id, "Webhook: Payment Refunded")
+
+    db.commit()
+    return True
+
+
+def process_payment_mock(db: Session, request: ProcessPaymentRequest):
+    invoice = db.query(Invoice).filter(Invoice.id == request.invoice_id).first()
+    if not invoice:
+        raise ValueError("Invoice not found")
+
+    if invoice.status == "paid":
+        raise ValueError("Invoice is already paid")
+
+    # Simulate success/fail
+    is_success = random.random() < 0.8
+    event = "payment_success" if is_success else "payment_failed"
+
+    payment = Payment(
+        invoice_id=invoice.id,
+        payment_reference=f"TXN-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        amount=request.amount,
+        payment_method="Mock Gateway",
+        status="pending",
+        payment_date=datetime.utcnow(),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+
+    # Trigger webhook internally
+    payload = WebhookPayload(
+        event=event,
+        invoice_id=invoice.id
+    )
+    handle_payment_webhook(db, payload)
+
+    # Refresh entities to get their final states post-webhook
+    db.refresh(payment)
+    db.refresh(invoice)
+    
+    sub_status = None
+    if invoice.subscription_id:
+        sub = db.query(Subscription).filter(Subscription.id == invoice.subscription_id).first()
+        if sub:
+            sub_status = sub.status
+
+    return {
+        "payment_reference": payment.payment_reference,
+        "payment_status": payment.status,
+        "invoice_status": invoice.status,
+        "subscription_status": sub_status,
+        "message": "Payment processed successfully" if is_success else "Payment processing failed"
     }

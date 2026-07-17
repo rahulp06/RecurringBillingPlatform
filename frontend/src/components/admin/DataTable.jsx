@@ -4,29 +4,22 @@ import {
     FaSearch,
     FaEdit,
     FaTrash,
-    FaEye
+    FaEye,
+    FaCreditCard
 } from "react-icons/fa";
 
 import "../../styles/admin/admin-table.css";
 
 function DataTable({
-
     title,
-
     subtitle,
-
     columns,
-
     data,
-
     onEdit,
-
     onDelete,
-
     onView,
-
+    onProcessPayment,
     searchable = true
-
 }){
 
     const [search,setSearch]=useState("");
@@ -155,6 +148,16 @@ function DataTable({
 
                                                     </button>
 
+                                                )}
+
+                                                {onProcessPayment && row.status !== "paid" && (
+                                                    <button
+                                                        className="action-btn payment-btn"
+                                                        onClick={() => onProcessPayment(row)}
+                                                        title="Process Payment"
+                                                    >
+                                                        <FaCreditCard />
+                                                    </button>
                                                 )}
 
                                                 {onEdit && (

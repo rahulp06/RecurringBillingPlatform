@@ -14,10 +14,10 @@ from backend.models import (
     AuditLog,
 )
 from backend.schemas import (
-    PlanCreate, 
-    CustomerSignup, 
-    CustomerLogin, 
-    Token, 
+    PlanCreate,
+    CustomerSignup,
+    CustomerLogin,
+    Token,
     CustomerUpdate,
     SubscriptionCreate,
     BillingCycleCreate,
@@ -25,13 +25,15 @@ from backend.schemas import (
     PaymentCreate,
     AuditLogCreate,
     ChangePlanRequest,
-    ProrationPreviewResponse
+    ProrationPreviewResponse,
+    ProcessPaymentRequest,
+    WebhookPayload
 )
 from backend.crud import (
     create_plan,
-    get_plans, 
-    get_customer_by_email, 
-    create_customer, 
+    get_plans,
+    get_customer_by_email,
+    create_customer,
     authenticate_customer,
     get_plan,
     update_plan,
@@ -78,7 +80,9 @@ from backend.crud import (
     resume_my_subscription,
     cancel_my_subscription,
     get_proration_preview,
-    get_proration_preview_for_customer
+    get_proration_preview_for_customer,
+    process_payment_mock,
+    handle_payment_webhook
 )
 from backend.security import (
     create_access_token, 
@@ -1140,3 +1144,29 @@ def remove_audit_log(
         )
 
     return deleted
+
+# ==========================================================
+# GATEWAY & WEBHOOK ENDPOINTS
+# ==========================================================
+
+@app.post("/payments/process", tags=["Payments"])
+def process_payment_api(
+    request: ProcessPaymentRequest,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return process_payment_mock(db, request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/webhooks/payment", tags=["Payments"])
+def payment_webhook_api(
+    payload: WebhookPayload,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    success = handle_payment_webhook(db, payload)
+    if not success:
+        raise HTTPException(status_code=404, detail="Webhook processing failed")
+    return {"status": "success"}
