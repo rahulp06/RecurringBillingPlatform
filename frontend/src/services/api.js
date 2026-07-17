@@ -411,11 +411,14 @@ export const deletePayment = async (id) =>
 
 /* ---------------- PAYMENTS (Mock Gateway) ---------------- */
 
-export const processPayment = async (data) => {
+export const processPayment = async (invoiceId, amount) => {
     const res = await fetch(`${BASE_URL}/payments/process`, {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+            invoice_id: invoiceId,
+            amount: amount
+        })
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -537,5 +540,3 @@ export const getMyPlanHistory = async () =>
         headers: headers(false)
     })
 ).json();
-
-
