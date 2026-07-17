@@ -8,6 +8,7 @@ import Loading from "../../components/common/Loading";
 import EmptyState from "../../components/common/EmptyState";
 import InvoiceModal from "../../components/admin/InvoiceModal";
 import InvoiceDetailModal from "../../components/common/InvoiceDetailModal";
+import PaymentModal from "../../components/admin/PaymentModal";
 
 import {
     getInvoices,
@@ -17,7 +18,8 @@ import {
     createInvoice,
     updateInvoice,
     deleteInvoice,
-    generateInvoices
+    generateInvoices,
+    processPayment
 } from "../../services/api";
 
 function Invoices(){
@@ -49,6 +51,10 @@ function Invoices(){
     const [generateModalOpen, setGenerateModalOpen] = useState(false);
     const [taxRateInput, setTaxRateInput] = useState("18.0");
     const [generating, setGenerating] = useState(false);
+
+    // Process Payment Modal state
+    const [processModalOpen, setProcessModalOpen] = useState(false);
+    const [processInvoiceData, setProcessInvoiceData] = useState(null);
 
     useEffect(()=>{
 
@@ -134,6 +140,9 @@ function Invoices(){
                         : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(invoice.total_amount),
 
                     status:invoice.status,
+                    
+                    // Explicitly targeting the existing project values for unpaid invoices
+                    canProcessPayment: invoice.status.toLowerCase() === "unpaid" || invoice.status.toLowerCase() === "pending",
 
                     customer_id:invoice.customer_id,
 
@@ -232,6 +241,18 @@ function Invoices(){
 
         }
 
+    };
+
+    const handleProcessPaymentAction = (invoiceRow) => {
+        setProcessInvoiceData({
+            invoice_id: invoiceRow.id,
+            payment_reference: `PAY-${Date.now()}`,
+            amount_raw: invoiceRow.total_amount,
+            payment_method: "Mock Gateway",
+            status: "pending",
+            payment_date: new Date().toISOString()
+        });
+        setProcessModalOpen(true);
     };
 
     const handleBulkGenerate = async () => {
@@ -435,33 +456,33 @@ function Invoices(){
                         :
 
                         <DataTable
-
+ 
                            title="Customer Invoices"
-
+ 
                            subtitle="Track generated invoices and payment status."
-
+ 
                             columns={[
-
+ 
                                 "Invoice",
-
+ 
                                 "Customer",
-
+ 
                                 "Amount",
-
+ 
                                 "Status",
-
+ 
                                 "Actions"
-
+ 
                             ]}
-
+ 
                             data={filteredInvoices}
-
+ 
                             onEdit={handleEdit}
-
+ 
                             onDelete={handleDelete}
-
+ 
                             onView={handleView}
-
+                            onProcessPayment={handleProcessPaymentAction}
                         />
 
                     }
