@@ -409,6 +409,21 @@ export const deletePayment = async (id) =>
     })
 ).json();
 
+/* ---------------- PAYMENTS (Mock Gateway) ---------------- */
+
+export const processPayment = async (data) => {
+    const res = await fetch(`${BASE_URL}/payments/process`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Payment processing failed");
+    }
+    return await res.json();
+};
+
 /* ---------------- AUDIT LOGS ---------------- */
 
 export const getAuditLogs = async () =>
