@@ -22,6 +22,8 @@ import {
     processPayment
 } from "../../services/api";
 
+// Load all invoices from backend
+
 function Invoices(){
 
     const [invoiceData,setInvoiceData]=useState([]);
