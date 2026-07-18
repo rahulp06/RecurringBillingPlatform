@@ -47,16 +47,25 @@ function MySubscription() {
 
             if (subscriptions.length > 0) {
 
-                const sub = subscriptions[0];
+                const sub =
+                    subscriptions.find(s =>
+                        ["active", "trial", "paused"].includes(s.status)
+                    ) || subscriptions[0];
+
                 setSubscription(sub);
 
                 if (Array.isArray(historyData)) {
-                    // Sort descending by created_at just in case (already ordered by backend)
+
                     const changes = [...historyData].sort(
                         (a, b) => new Date(b.created_at) - new Date(a.created_at)
                     );
+
                     setPlanChanges(changes);
                 }
+
+            } else {
+
+                setSubscription(null);
 
             }
 
@@ -80,34 +89,57 @@ function MySubscription() {
 
     const handleAction = async (action) => {
 
-        try {
+    try {
 
-            setActionLoading(true);
+        setActionLoading(true);
 
-            if (action === "pause")
-                await pauseMySubscription();
+        let updatedSubscription;
 
-            if (action === "resume")
-                await resumeMySubscription();
+        if (action === "pause") {
 
-            if (action === "cancel")
-                await cancelMySubscription();
+            updatedSubscription = await pauseMySubscription();
 
-            toast.success("Subscription updated.");
-
-            await loadData();
-
-        } catch {
-
-            toast.error("Operation failed.");
-
-        } finally {
-
-            setActionLoading(false);
+            toast.success("Subscription paused.");
 
         }
 
-    };
+        else if (action === "resume") {
+
+            updatedSubscription = await resumeMySubscription();
+
+            toast.success("Subscription resumed.");
+
+        }
+
+        else if (action === "cancel") {
+
+            updatedSubscription = await cancelMySubscription();
+
+            toast.success("Subscription cancelled.");
+
+        }
+
+        // Update UI immediately
+        if (updatedSubscription) {
+            setSubscription(updatedSubscription);
+        }
+
+        // Reload everything (plans, history, etc.)
+        await loadData();
+
+    } catch (err) {
+
+        console.error(err);
+
+        toast.error("Operation failed.");
+
+    } finally {
+
+        setActionLoading(false);
+
+    }
+
+};
 
     if (loading) {
 
@@ -302,6 +334,18 @@ function MySubscription() {
 
                             </div>
 
+                        )}
+
+                        {subscription.status === "past_due" && (
+                            <div className="pastdue-message">
+                                Your subscription payment is overdue. Please complete payment to continue using your plan.
+                            </div>
+                        )}
+
+                        {subscription.status === "expired" && (
+                            <div className="expired-message">
+                                Your subscription has expired. Please subscribe to a new plan.
+                            </div>
                         )}
 
                     </div>

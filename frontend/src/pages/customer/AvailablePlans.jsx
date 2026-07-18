@@ -41,7 +41,18 @@ function AvailablePlans() {
             setPlans(plansData);
 
             if (subscriptionsData.length > 0) {
-                setCurrentSubscription(subscriptionsData[0]);
+
+                const latestSubscription =
+                    subscriptionsData.find(sub =>
+                        ["active", "trial"].includes(sub.status)
+                    ) || subscriptionsData[0];
+
+                setCurrentSubscription(latestSubscription);
+
+            } else {
+
+                setCurrentSubscription(null);
+
             }
 
         } catch (err) {
@@ -181,8 +192,13 @@ function AvailablePlans() {
 
                     {plans.map((plan) => {
 
+                        const hasSubscription =
+                            currentSubscription &&
+                            ["active", "trial", "paused"].includes(currentSubscription.status);
+
                         const isCurrent =
-                            currentSubscription?.plan_id === plan.id;
+                            hasSubscription &&
+                            currentSubscription.plan_id === plan.id;
 
                         return (
 
@@ -244,7 +260,9 @@ function AvailablePlans() {
                                     className={
                                         isCurrent
                                             ? "current-btn"
-                                            : "subscribe-btn"
+                                            : hasSubscription
+                                                ? "change-plan-btn"
+                                                : "subscribe-btn"
                                     }
                                     disabled={isCurrent || updating || previewLoading}
                                     onClick={async () => {
@@ -254,7 +272,7 @@ function AvailablePlans() {
                                         // -----------------------------
                                         // First subscription
                                         // -----------------------------
-                                        if (!currentSubscription) {
+                                        if (!hasSubscription) {
 
                                             try {
 
@@ -311,9 +329,13 @@ function AvailablePlans() {
                                     }}
                                 >
 
-                                    {isCurrent
-                                        ? "Current Plan"
-                                        : "Subscribe"}
+                                    {
+                                        isCurrent
+                                            ? "Current Plan"
+                                            : hasSubscription
+                                                ? "Change Plan"
+                                                : "Subscribe"
+                                    }
 
                                 </button>
 

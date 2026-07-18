@@ -362,23 +362,18 @@ function InvoiceModal({
 
     value={form.subtotal}
 
-    onChange={(e)=>{
+    onChange={(e) => {
+    const subtotal = Number(e.target.value || 0);
+    const gstRate = Number(form.tax_amount || 0);
 
-        const subtotal = Number(e.target.value || 0);
+    const gstAmount = subtotal * gstRate / 100;
 
-        const tax = Number(form.tax_amount || 0);
-
-        setForm({
-
-            ...form,
-
-            subtotal,
-
-            total_amount: subtotal + tax
-
-        });
-
-    }}
+    setForm({
+        ...form,
+        subtotal,
+        total_amount: Number((subtotal + gstAmount).toFixed(2))
+    });
+}}
 
 />
 
@@ -388,7 +383,7 @@ function InvoiceModal({
 
                         <label>
 
-                            Tax
+                            GST Rate (%)
 
                         </label>
 
@@ -398,23 +393,18 @@ function InvoiceModal({
 
     value={form.tax_amount}
 
-    onChange={(e)=>{
+    onChange={(e) => {
+    const gstRate = Number(e.target.value || 0);
+    const subtotal = Number(form.subtotal || 0);
 
-        const tax = Number(e.target.value || 0);
+    const gstAmount = subtotal * gstRate / 100;
 
-        const subtotal = Number(form.subtotal || 0);
-
-        setForm({
-
-            ...form,
-
-            tax_amount: tax,
-
-            total_amount: subtotal + tax
-
-        });
-
-    }}
+    setForm({
+        ...form,
+        tax_amount: gstRate,
+        total_amount: Number((subtotal + gstAmount).toFixed(2))
+    });
+}}
 
 />
 

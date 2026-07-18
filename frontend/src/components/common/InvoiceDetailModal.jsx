@@ -80,18 +80,54 @@ function InvoiceDetailModal({
             <style>{printStyles}</style>
             <div className="modal modal-content" style={{ maxWidth: "600px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                    <h2>Invoice Details</h2>
+                    <h2>Tax Invoice</h2>
                     <button className="close-detail-btn" onClick={onClose} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}>&times;</button>
                 </div>
 
                 <div className="invoice-header-section" style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", paddingBottom: "15px", marginBottom: "20px" }}>
                     <div>
-                        <h3 style={{ margin: 0, color: "#4f46e5" }}>BillingPro</h3>
-                        <p style={{ margin: "5px 0 0 0", fontSize: "14px", color: "#64748b" }}>Invoice #: {invoice.invoice_number || invoice.invoice}</p>
-                    </div>
+                        <div>
+
+                            <h2
+                                style={{
+                                    margin:0,
+                                    color:"#4f46e5",
+                                    fontWeight:"700"
+                                }}
+                            >
+                                BillingPro
+                            </h2>
+
+                            <p
+                                style={{
+                                    margin:"4px 0",
+                                    color:"#64748b",
+                                    fontSize:"13px"
+                                }}
+                            >
+                                Recurring Billing Platform
+                            </p>
+
+                            <p
+                                style={{
+                                    margin:"8px 0 0",
+                                    fontSize:"14px"
+                                }}
+                            >
+                                Invoice #
+                                {" "}
+                                <strong>
+                                    {invoice.invoice_number || invoice.invoice}
+                                </strong>
+                            </p>
+
+                        </div>
+                                            </div>
                     <div style={{ textAlign: "right" }}>
                         <span className={`status ${String(invoice.status).toLowerCase()}`} style={{ padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "bold", textTransform: "uppercase" }}>
-                            {invoice.status}
+                            {String(invoice.status)
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, c => c.toUpperCase())}
                         </span>
                         <p style={{ margin: "5px 0 0 0", fontSize: "12px", color: "#64748b" }}>Date: {invoice.invoice_date}</p>
                     </div>
@@ -163,7 +199,7 @@ function InvoiceDetailModal({
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", width: "250px", fontSize: "16px", fontWeight: "bold", margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #cbd5e1" }}>
                                 <span>{invoice.total_amount < 0 ? "Credit Applied:" : "Amount Due:"}</span>
-                                <span style={{ color: invoice.total_amount < 0 ? "#16a34a" : "#4f46e5" }}>
+                                <span style={{ color: invoice.total_amount < 0 ? "#16a34a" : "#4f46e5", fontSize: "22px" }}>
                                     ₹{Math.abs(invoice.total_amount || 0).toFixed(2)}
                                 </span>
                             </div>
@@ -175,12 +211,14 @@ function InvoiceDetailModal({
                                 <span style={{ fontWeight: "500" }}>₹{Number(invoice.subtotal || 0).toFixed(2)}</span>
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "14px", margin: "3px 0" }}>
-                                <span style={{ color: "#64748b" }}>Tax Amount:</span>
+                                <span style={{ color: "#64748b" }}>
+                                    GST (18%):
+                                </span>
                                 <span style={{ fontWeight: "500" }}>₹{Number(invoice.tax_amount || 0).toFixed(2)}</span>
                             </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", width: "200px", fontSize: "16px", fontWeight: "bold", margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #cbd5e1" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", width: "220px", fontSize: "18px", fontWeight: "bold", margin: "8px 0 0 0", paddingTop: "8px", borderTop: "1px solid #cbd5e1" }}>
                                 <span>{invoice.total_amount < 0 ? "Credit Applied" : "Total"}:</span>
-                                <span style={{ color: invoice.total_amount < 0 ? "#16a34a" : "#4f46e5" }}>
+                                <span style={{ color: invoice.total_amount < 0 ? "#16a34a" : "#4f46e5", fontSize: "22px" }}>
                                     ₹{Math.abs(invoice.total_amount || 0).toFixed(2)}
                                 </span>
                             </div>
@@ -188,10 +226,30 @@ function InvoiceDetailModal({
                     )}
                 </div>
 
-                <div className="modal-actions invoice-detail-modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-                    <button className="cancel-btn" onClick={onClose}>Close</button>
-                    <button className="primary-btn" onClick={handlePrint}>Download PDF / Print</button>
+                <div
+                    style={{
+                        marginTop: "30px",
+                        paddingTop: "15px",
+                        borderTop: "1px dashed #cbd5e1",
+                        textAlign: "center",
+                        color: "#64748b",
+                        fontSize: "13px"
+                    }}
+                >
+                    <p style={{ margin: 0 }}>
+                        Thank you for choosing BillingPro.
+                    </p>
+
+                    <p style={{ marginTop: "6px" }}>
+                        This is a system-generated invoice and does not require a signature.
+                    </p>
                 </div>
+            
+
+                <div className="modal-actions invoice-detail-modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
+                                    <button className="cancel-btn" onClick={onClose}>Close</button>
+                                    <button className="primary-btn" onClick={handlePrint}>Print / Save as PDF</button>
+                                </div>
             </div>
         </div>
     );

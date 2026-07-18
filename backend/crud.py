@@ -215,6 +215,8 @@ def log_audit(
 
     return audit
 
+
+
 def create_subscription(db: Session, subscription: SubscriptionCreate):
 
     try:
@@ -230,6 +232,20 @@ def create_subscription(db: Session, subscription: SubscriptionCreate):
 
         if customer is None:
             raise ValueError("Customer not found")
+        
+        existing_subscription = (
+            db.query(Subscription)
+            .filter(
+                Subscription.customer_id == subscription.customer_id,
+                Subscription.status.in_(["active", "trial", "paused"])
+            )
+            .first()
+        )
+
+        if existing_subscription:
+            raise ValueError(
+                "Customer already has an active subscription. Please change or cancel the current plan."
+            )
 
         # -----------------------------
         # Validate Plan
@@ -307,6 +323,15 @@ def create_subscription(db: Session, subscription: SubscriptionCreate):
         # -----------------------------
         # Create Invoice
         # -----------------------------
+        subtotal = plan.price
+
+        # Default GST rate for new subscriptions
+        gst_rate = 18.0
+
+        tax_amount = round(subtotal * gst_rate / 100, 2)
+
+        total_amount = round(subtotal + tax_amount, 2)
+
         invoice = Invoice(
 
             invoice_number=f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
@@ -319,11 +344,11 @@ def create_subscription(db: Session, subscription: SubscriptionCreate):
 
             due_date=end_date,
 
-            subtotal=plan.price,
+            subtotal=subtotal,
 
-            tax_amount=0,
+            tax_amount=tax_amount,
 
-            total_amount=plan.price,
+            total_amount=total_amount,
 
             status="paid"
 
@@ -454,11 +479,13 @@ def cancel_subscription(db: Session, subscription_id: int):
         raise ValueError("Subscription not found")
 
     from .services import change_subscription_status
+    print("Before:", subscription.id, subscription.status)
 
     change_subscription_status(subscription, "cancelled")
 
     db.commit()
     db.refresh(subscription)
+    print("After:", subscription.id, subscription.status)
     log_audit(
         db,
         "subscription",
@@ -686,12 +713,9 @@ def delete_subscription(
 
 def change_my_plan(db, current_user, new_plan_id):
 
-    subscription = (
-        db.query(Subscription)
-        .filter(
-            Subscription.customer_id == current_user.id
-        )
-        .first()
+    subscription = get_current_subscription(
+        db,
+        current_user.id
     )
 
     if not subscription:
@@ -706,12 +730,9 @@ def change_my_plan(db, current_user, new_plan_id):
 
 def get_proration_preview_for_customer(db, current_user, new_plan_id):
     """Returns a proration preview dict for the customer's active subscription."""
-    subscription = (
-        db.query(Subscription)
-        .filter(
-            Subscription.customer_id == current_user.id
-        )
-        .first()
+    subscription = get_current_subscription(
+        db,
+        current_user.id
     )
 
     if not subscription:
@@ -754,12 +775,9 @@ def get_proration_preview(db, subscription_id, new_plan_id):
 
 def pause_my_subscription(db, current_user):
 
-    subscription = (
-        db.query(Subscription)
-        .filter(
-            Subscription.customer_id == current_user.id
-        )
-        .first()
+    subscription = get_current_subscription(
+        db,
+        current_user.id
     )
 
     if not subscription:
@@ -775,8 +793,10 @@ def resume_my_subscription(db, current_user):
     subscription = (
         db.query(Subscription)
         .filter(
-            Subscription.customer_id == current_user.id
+            Subscription.customer_id == current_user.id,
+            Subscription.status == "paused"
         )
+        .order_by(Subscription.id.desc())
         .first()
     )
 
@@ -793,17 +813,31 @@ def cancel_my_subscription(db, current_user):
     subscription = (
         db.query(Subscription)
         .filter(
-            Subscription.customer_id == current_user.id
+            Subscription.customer_id == current_user.id,
+            Subscription.status.in_(["active", "trial", "paused"])
         )
+        .order_by(Subscription.id.desc())
         .first()
     )
 
     if not subscription:
         raise ValueError("No active subscription found.")
-
+    print("Cancelling subscription:", subscription.id)
     return cancel_subscription(
         db,
         subscription.id
+    )
+
+def get_current_subscription(db, customer_id):
+
+    return (
+        db.query(Subscription)
+        .filter(
+            Subscription.customer_id == customer_id,
+            Subscription.status.in_(["active", "trial", "paused"])
+        )
+        .order_by(Subscription.id.desc())
+        .first()
     )
 # ==========================
 # BILLING CYCLE CRUD
@@ -961,7 +995,6 @@ def generate_billing_cycle(
 # ==========================
 
 def generate_bulk_invoices(db: Session, tax_rate: float = 0.0):
-    import random
     subscriptions = (
         db.query(Subscription)
         .filter(Subscription.status.in_(["active", "trial"]))
@@ -996,7 +1029,10 @@ def generate_bulk_invoices(db: Session, tax_rate: float = 0.0):
                 inv_num = f"INV-{today_str}-{suffix}"
 
                 subtotal = plan.price
-                tax_amount = round(subtotal * tax_rate, 2)
+
+                # Convert percentage to decimal (18 -> 0.18)
+                tax_amount = round(subtotal * (tax_rate / 100), 2)
+
                 total_amount = round(subtotal + tax_amount, 2)
 
                 invoice = Invoice(
@@ -1462,16 +1498,16 @@ def handle_payment_webhook(db: Session, payload: WebhookPayload):
 
             payment.failure_reason = "Mock Gateway Failure"
 
-            retry_seconds = {
-                1: 10,
-                2: 20,
-                3: 30
+            retry_days = {
+                1: 1,
+                2: 3,
+                3: 7
             }
 
             if payment.retry_count <= 3:
                 payment.next_retry_date = (
                     datetime.utcnow()
-                    + timedelta(seconds=retry_seconds[payment.retry_count])
+                    + timedelta(days=retry_days[payment.retry_count])
                 )
             else:
                 payment.next_retry_date = None
@@ -1510,7 +1546,7 @@ def process_payment_mock(db: Session, request: ProcessPaymentRequest):
         raise ValueError("Invoice is already paid")
 
     # Simulate success/fail
-    is_success = False
+    is_success = random.random()<0.8
     event = "payment_success" if is_success else "payment_failed"
 
         # -------------------------------------------------

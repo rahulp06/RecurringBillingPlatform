@@ -118,3 +118,23 @@
     color:#64748b;
     cursor:not-allowed;
 }
+
+.change-plan-btn {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+
+    transition: all 0.25s ease;
+}
+
+.change-plan-btn:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    transform: translateY(-2px);
+}
