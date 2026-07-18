@@ -1422,8 +1422,15 @@ def handle_payment_webhook(db: Session, payload: WebhookPayload):
 
     if payload.event == "payment_success":
         invoice.status = "paid"
-        if payment and payment.status != "paid":
+        if payment:
+
             payment.status = "paid"
+
+            payment.retry_count = 0
+
+            payment.failure_reason = None
+
+            payment.next_retry_date = None
 
         if subscription:
             try:
@@ -1446,10 +1453,28 @@ def handle_payment_webhook(db: Session, payload: WebhookPayload):
         log_audit(db, "invoice", invoice.id, "Webhook: Payment Success")
 
     elif payload.event == "payment_failed":
-        # Invoice status is NOT modified here; it remains in its current state (pending/unpaid)
-        
-        if payment and payment.status != "failed":
+
+        if payment:
+
             payment.status = "failed"
+
+            payment.retry_count += 1
+
+            payment.failure_reason = "Mock Gateway Failure"
+
+            retry_seconds = {
+                1: 10,
+                2: 20,
+                3: 30
+            }
+
+            if payment.retry_count <= 3:
+                payment.next_retry_date = (
+                    datetime.utcnow()
+                    + timedelta(seconds=retry_seconds[payment.retry_count])
+                )
+            else:
+                payment.next_retry_date = None
 
         if subscription:
             try:
@@ -1462,8 +1487,13 @@ def handle_payment_webhook(db: Session, payload: WebhookPayload):
     elif payload.event == "payment_refunded":
         # Invoice status is NOT modified here
         
-        if payment and payment.status != "refunded":
+        if payment:
+
             payment.status = "refunded"
+
+            payment.refund_status = "completed"
+
+            payment.refunded_amount = payment.amount
             
         log_audit(db, "invoice", invoice.id, "Webhook: Payment Refunded")
 
@@ -1480,21 +1510,71 @@ def process_payment_mock(db: Session, request: ProcessPaymentRequest):
         raise ValueError("Invoice is already paid")
 
     # Simulate success/fail
-    is_success = random.random() < 0.8
+    is_success = False
     event = "payment_success" if is_success else "payment_failed"
 
-    payment = Payment(
-        invoice_id=invoice.id,
-        payment_reference=f"TXN-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
-        amount=request.amount,
-        payment_method="Mock Gateway",
-        status="pending",
-        payment_date=datetime.utcnow(),
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        # -------------------------------------------------
+    # Reuse existing payment if available
+    # -------------------------------------------------
+
+    payment = (
+        db.query(Payment)
+        .filter(Payment.invoice_id == invoice.id)
+        .order_by(Payment.created_at.desc())
+        .first()
     )
-    db.add(payment)
+
+    if payment:
+
+        payment.payment_reference = (
+            f"TXN-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        )
+
+        payment.amount = request.amount
+
+        payment.payment_method = "Mock Gateway"
+
+        payment.status = "pending"
+
+        payment.payment_date = datetime.utcnow()
+
+        payment.updated_at = datetime.utcnow()
+
+    else:
+
+        payment = Payment(
+
+            invoice_id=invoice.id,
+
+            payment_reference=f"TXN-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+
+            amount=request.amount,
+
+            payment_method="Mock Gateway",
+
+            status="pending",
+
+            payment_date=datetime.utcnow(),
+
+            created_at=datetime.utcnow(),
+
+            updated_at=datetime.utcnow(),
+
+            retry_count=0,
+
+            next_retry_date=None,
+
+            failure_reason=None,
+
+            refunded_amount=0,
+
+            refund_status="none"
+        )
+
+        db.add(payment)
+
     db.commit()
+
     db.refresh(payment)
 
     # Trigger webhook internally
@@ -1520,4 +1600,146 @@ def process_payment_mock(db: Session, request: ProcessPaymentRequest):
         "invoice_status": invoice.status,
         "subscription_status": sub_status,
         "message": "Payment processed successfully" if is_success else "Payment processing failed"
+    }
+
+# ==========================
+# TASK 4 - RETRY FAILED PAYMENT
+# ==========================
+
+def retry_failed_payment(db: Session, payment_id: int):
+
+    payment = (
+        db.query(Payment)
+        .filter(Payment.id == payment_id)
+        .first()
+    )
+
+    if payment is None:
+        raise ValueError("Payment not found")
+
+    if payment.status != "failed":
+        raise ValueError("Only failed payments can be retried")
+
+    if payment.retry_count >= 3:
+        raise ValueError("Maximum retry attempts reached")
+
+    if (
+        payment.next_retry_date
+        and payment.next_retry_date > datetime.utcnow()
+    ):
+        raise ValueError(
+            f"Next retry available after {payment.next_retry_date}"
+        )
+
+    invoice = (
+        db.query(Invoice)
+        .filter(Invoice.id == payment.invoice_id)
+        .first()
+    )
+
+    if invoice is None:
+        raise ValueError("Invoice not found")
+
+    result = process_payment_mock(
+        db,
+        ProcessPaymentRequest(
+            invoice_id=invoice.id,
+            amount=payment.amount
+        )
+    )
+
+    db.refresh(payment)
+
+    log_audit(
+        db,
+        "payment",
+        payment.id,
+        f"Retry Attempt #{payment.retry_count}"
+    )
+
+    return result
+
+def get_failed_payments(db: Session):
+    return (
+        db.query(Payment)
+        .filter(Payment.status == "failed")
+        .order_by(Payment.updated_at.desc())
+        .all()
+    )
+
+# ==========================
+# TASK 5 - REFUND MANAGEMENT
+# ==========================
+
+def process_refund(
+    db: Session,
+    payment_id: int,
+    refund_amount: float
+):
+    payment = (
+        db.query(Payment)
+        .filter(Payment.id == payment_id)
+        .first()
+    )
+
+    if payment is None:
+        raise ValueError("Payment not found")
+
+    if payment.status not in ["paid", "partially_refunded"]:
+        raise ValueError("Only paid payments can be refunded")
+
+    if refund_amount <= 0:
+        raise ValueError("Refund amount must be greater than zero")
+
+    refundable = payment.amount - payment.refunded_amount
+
+    if refund_amount > refundable:
+        raise ValueError(
+            f"Maximum refundable amount is ₹{refundable:.2f}"
+        )
+
+    payment.refunded_amount += refund_amount
+
+    if payment.refunded_amount == payment.amount:
+
+        payment.refund_status = "completed"
+        payment.status = "refunded"
+
+    else:
+
+        payment.refund_status = "partial"
+        payment.status = "partially_refunded"
+
+    payment.updated_at = datetime.utcnow()
+
+    invoice = (
+        db.query(Invoice)
+        .filter(Invoice.id == payment.invoice_id)
+        .first()
+    )
+
+    if invoice:
+        invoice.status = "paid"
+
+    log_audit(
+        db,
+        "payment",
+        payment.id,
+        "Refund Issued",
+        old_value=f"Refunded ₹{payment.refunded_amount-refund_amount:.2f}",
+        new_value=f"Refunded ₹{payment.refunded_amount:.2f}"
+    )
+
+    db.commit()
+    db.refresh(payment)
+
+    return {
+        "payment_id": payment.id,
+        "payment_reference": payment.payment_reference,
+        "paid_amount": payment.amount,
+        "refunded_amount": payment.refunded_amount,
+        "remaining_amount": payment.amount - payment.refunded_amount,
+        "refund_status": payment.refund_status,
+        "payment_status": payment.status,
+        "message": "Refund processed successfully"
     }

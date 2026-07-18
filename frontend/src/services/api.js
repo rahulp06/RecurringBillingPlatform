@@ -427,6 +427,71 @@ export const processPayment = async (invoiceId, amount) => {
     return await res.json();
 };
 
+export async function getFailedPayments() {
+    const response = await fetch(`${BASE_URL}/payments/failed`, {
+        headers: headers(false)
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to fetch failed payments");
+    }
+
+    return response.json();
+}
+
+export async function retryPayment(paymentId) {
+
+    const response = await fetch(
+        `${BASE_URL}/payments/retry/${paymentId}`,
+        {
+            method: "POST",
+            headers: headers(false)
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.detail || "Retry failed");
+    }
+
+    return data;
+}
+
+/* ---------------- REFUNDS ---------------- */
+
+export async function processRefund(
+    paymentId,
+    amount,
+    reason
+) {
+
+    const response = await fetch(
+        `${BASE_URL}/payments/refund`,
+        {
+            method: "POST",
+            headers: headers(),
+            body: JSON.stringify({
+                payment_id: paymentId,
+                amount,
+                reason
+            })
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.detail || "Refund processing failed"
+        );
+
+    }
+
+    return data;
+}
 /* ---------------- AUDIT LOGS ---------------- */
 
 export const getAuditLogs = async () =>

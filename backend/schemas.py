@@ -245,3 +245,64 @@ class ProcessPaymentResponse(BaseModel):
     invoice_status: str
     subscription_status: str | None = None
     message: str
+
+# ==========================
+# TASK 4 - FAILED PAYMENT RETRY
+# ==========================
+
+class RetryPaymentResponse(BaseModel):
+    payment_reference: str
+    payment_status: str
+    invoice_status: str
+    subscription_status: str | None = None
+    retry_count: int
+    next_retry_date: datetime | None = None
+    message: str
+
+
+class FailedPaymentResponse(BaseModel):
+    payment_id: int
+    invoice_id: int
+    payment_reference: str
+    amount: float
+    retry_count: int
+    next_retry_date: datetime | None = None
+    failure_reason: str | None = None
+
+
+class RetryAllPaymentsResponse(BaseModel):
+    total_failed: int
+    retried: int
+    successful: int
+    failed: int
+    message: str
+
+
+# ==========================
+# TASK 4 - REFUND MANAGEMENT
+# ==========================
+
+class RefundRequest(BaseModel):
+    payment_id: int
+    amount: float
+    reason: str
+
+
+class RefundResponse(BaseModel):
+    payment_id: int
+    payment_reference: str
+    paid_amount: float
+    refunded_amount: float
+    remaining_amount: float
+    refund_status: str
+    payment_status: str
+    message: str
+
+
+class RefundHistoryResponse(BaseModel):
+    payment_id: int
+    payment_reference: str
+    refunded_amount: float
+    refund_status: str
+    payment_status: str
+    refund_date: datetime

@@ -97,14 +97,36 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True, index=True)
+
     invoice_id = Column(Integer)
+
     payment_reference = Column(String)
+
     amount = Column(Float)
+
     payment_method = Column(String)
+
     status = Column(String)
+
     payment_date = Column(DateTime)
+
     created_at = Column(DateTime)
+
     updated_at = Column(DateTime)
+
+    # ==========================
+    # Task 4 - Retry & Refund
+    # ==========================
+
+    retry_count = Column(Integer, default=0)
+
+    next_retry_date = Column(DateTime, nullable=True)
+
+    failure_reason = Column(String, nullable=True)
+
+    refunded_amount = Column(Float, default=0)
+
+    refund_status = Column(String, default="none")
 
 
 class AuditLog(Base):

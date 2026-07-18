@@ -7,7 +7,8 @@ import DataTable from "../../components/admin/DataTable";
 import Loading from "../../components/common/Loading";
 import EmptyState from "../../components/common/EmptyState";
 import PaymentModal from "../../components/admin/PaymentModal";
-
+import RetryPaymentModal from "../../components/admin/RetryPaymentModal";
+import RefundModal from "../../components/admin/RefundModal";
 import {
     getPayments,
     getInvoices,
@@ -16,7 +17,8 @@ import {
     getPlans,
     createPayment,
     updatePayment,
-    deletePayment
+    deletePayment,
+    getFailedPayments,
 } from "../../services/api";
 
 function Payments() {
@@ -28,6 +30,13 @@ function Payments() {
 
     const [openModal, setOpenModal] = useState(false);
     const [editPayment, setEditPayment] = useState(null);
+    const [retryModalOpen, setRetryModalOpen] = useState(false);
+    const [refundModalOpen, setRefundModalOpen] = useState(false);
+
+    const [refundPayment, setRefundPayment] = useState(null);
+    const [selectedPayment, setSelectedPayment] = useState(null);
+
+    const [failedPayments, setFailedPayments] = useState([]);
 
     useEffect(() => {
 
@@ -47,15 +56,16 @@ function Payments() {
                 invoiceData,
                 customerData,
                 subscriptionData,
-                planData
-
+                planData,
+                failedPaymentData
             ] = await Promise.all([
 
                 getPayments(),
                 getInvoices(),
                 getCustomers(),
                 getSubscriptions(),
-                getPlans()
+                getPlans(),
+                getFailedPayments()
 
             ]);
 
@@ -132,14 +142,14 @@ function Payments() {
 
                 payment_method:
 
-    payment.payment_method
-        .replace("_"," ")
-        .replace(/\b\w/g,c=>c.toUpperCase()),
+                    payment.payment_method
+                        .replace("_"," ")
+                        .replace(/\b\w/g,c=>c.toUpperCase()),
 
-                status:
-
-                    payment.status,
-
+                status: payment.status
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, c => c.toUpperCase()),
+                status_raw: payment.status,
                 invoice_id:
 
                     payment.invoice_id,
@@ -150,11 +160,15 @@ function Payments() {
 
                 amount_raw:
 
-                    payment.amount
+                    payment.amount,
+                retry_count: payment.retry_count,
+                failure_reason: payment.failure_reason,
+                next_retry_date: payment.next_retry_date,
 
             }));
 
             setPayments(formatted);
+            setFailedPayments(failedPaymentData);
 
         }
 
@@ -193,6 +207,22 @@ function Payments() {
             toast.error("Unable to delete payment.");
 
         }
+
+    };
+
+    const handleRetry = (payment) => {
+
+        setSelectedPayment(payment);
+
+        setRetryModalOpen(true);
+
+    };
+
+    const handleRefund = (payment) => {
+
+        setRefundPayment(payment);
+
+        setRefundModalOpen(true);
 
     };
 
@@ -329,7 +359,9 @@ function Payments() {
                             ]}
 
                             data={payments}
-
+                            failedPayments={failedPayments}
+                            onRetry={handleRetry}
+                            onRefund={handleRefund}
                             onEdit={handleEdit}
 
                             onDelete={handleDelete}
@@ -354,6 +386,33 @@ function Payments() {
 
                 onSave={handleSave}
 
+            />
+            <RetryPaymentModal
+                open={retryModalOpen}
+                payment={selectedPayment}
+                onClose={() => {
+                    setRetryModalOpen(false);
+                    setSelectedPayment(null);
+                }}
+                onSuccess={() => {
+                    loadPayments();
+                }}
+            />
+            <RefundModal
+                open={refundModalOpen}
+                payment={refundPayment}
+                onClose={() => {
+
+                    setRefundModalOpen(false);
+
+                    setRefundPayment(null);
+
+                }}
+                onSuccess={() => {
+
+                    loadPayments();
+
+                }}
             />
 
         </div>

@@ -27,7 +27,9 @@ from backend.schemas import (
     ChangePlanRequest,
     ProrationPreviewResponse,
     ProcessPaymentRequest,
-    WebhookPayload
+    WebhookPayload,
+    RefundRequest,
+    RefundResponse,
 )
 from backend.crud import (
     create_plan,
@@ -82,7 +84,10 @@ from backend.crud import (
     get_proration_preview,
     get_proration_preview_for_customer,
     process_payment_mock,
-    handle_payment_webhook
+    handle_payment_webhook,
+    retry_failed_payment,
+    get_failed_payments,
+    process_refund
 )
 from backend.security import (
     create_access_token, 
@@ -959,6 +964,54 @@ def read_my_invoices(
 # ==========================================================
 
 @app.post("/payments", tags=["Payments"])
+
+@app.get("/payments/failed", tags=["Payments"])
+def read_failed_payments(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_failed_payments(db)
+
+@app.post("/payments/retry/{payment_id}", tags=["Payments"])
+def retry_payment_api(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return retry_failed_payment(db, payment_id)
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+@app.post(
+    "/payments/refund",
+    response_model=RefundResponse,
+    tags=["Payments"]
+)
+def refund_payment_api(
+    request: RefundRequest,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+
+        return process_refund(
+            db,
+            request.payment_id,
+            request.amount
+        )
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
 def add_payment(
     payment: PaymentCreate,
     db: Session = Depends(get_db),

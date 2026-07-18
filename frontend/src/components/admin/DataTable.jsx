@@ -5,7 +5,9 @@ import {
     FaEdit,
     FaTrash,
     FaEye,
-    FaCreditCard
+    FaCreditCard,
+    FaRedoAlt,
+    FaMoneyBillWave
 } from "react-icons/fa";
 
 import "../../styles/admin/admin-table.css";
@@ -19,6 +21,8 @@ function DataTable({
     onDelete,
     onView,
     onProcessPayment,
+    onRetry,
+    onRefund,
     searchable = true
 }){
 
@@ -160,6 +164,30 @@ function DataTable({
                                                     </button>
                                                 )}
 
+                                                {onRetry && row.status === "failed" && (
+                                                    <button
+                                                        className="action-btn retry-btn"
+                                                        onClick={() => onRetry(row)}
+                                                        title="Retry Payment"
+                                                    >
+                                                        <FaRedoAlt />
+                                                    </button>
+                                                )}
+
+                                                {onRefund &&
+                                                    (
+                                                        row.status_raw === "paid" ||
+                                                        row.status_raw === "partially_refunded"
+                                                    ) && (
+                                                    <button
+                                                        className="action-btn refund-btn"
+                                                        onClick={() => onRefund(row)}
+                                                        title="Issue Refund"
+                                                    >
+                                                        <FaMoneyBillWave size={16} />
+                                                    </button>
+                                                )}
+
                                                 {onEdit && (
 
                                                     <button
@@ -208,11 +236,16 @@ function DataTable({
 
                                             <span
 
-                                                className={`status ${String(row[key]).toLowerCase()}`}
+                                                className={`status ${String(row[key])
+                                                    .toLowerCase()
+                                                    .replace(/_/g, "-")
+                                                    .replace(/\s+/g, "-")}`}
 
                                             >
 
-                                                {String(row[key]).charAt(0).toUpperCase() + String(row[key]).slice(1)}
+                                                {String(row[key])
+                                                    .replace(/_/g, " ")
+                                                    .replace(/\b\w/g, c => c.toUpperCase())}
 
                                             </span>
 
