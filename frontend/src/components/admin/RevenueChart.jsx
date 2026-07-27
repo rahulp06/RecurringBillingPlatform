@@ -1,6 +1,6 @@
 import {
-    LineChart,
-    Line,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     Tooltip,
@@ -8,106 +8,29 @@ import {
     ResponsiveContainer
 } from "recharts";
 
-import { useEffect, useState } from "react";
-import { getPayments } from "../../services/api";
+function RevenueChart({ dashboard }) {
 
-function RevenueChart() {
-
-    const [data, setData] = useState([]);
-
-    useEffect(() => {
-
-        loadRevenue();
-
-    }, []);
-
-    const loadRevenue = async () => {
-
-        try {
-
-            const payments = await getPayments();
-
-            const months = [
-                "Jan",
-                "Feb",
-                "Mar",
-                "Apr",
-                "May",
-                "Jun",
-                "Jul",
-                "Aug",
-                "Sep",
-                "Oct",
-                "Nov",
-                "Dec"
-            ];
-
-            const revenueMap = {};
-
-            months.forEach(month => {
-
-                revenueMap[month] = 0;
-
-            });
-
-            payments.forEach(payment => {
-
-                const date = new Date(payment.payment_date);
-
-                const month = months[date.getMonth()];
-
-                revenueMap[month] += payment.amount;
-
-            });
-
-            const chartData = months.map(month => ({
-
-                month,
-
-                revenue: revenueMap[month]
-
-            }));
-
-            setData(chartData);
-
-        } catch (err) {
-
-            console.error(err);
-
-        }
-
-    };
+    const data = dashboard?.revenueByPlan || [];
 
     return (
-
         <ResponsiveContainer
             width="100%"
             height={320}
         >
-
-            <LineChart data={data}>
-
+            <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />
-
-                <XAxis dataKey="month" />
-
+                <XAxis dataKey="plan" />
                 <YAxis />
-
                 <Tooltip />
 
-                <Line
-                    type="monotone"
+                <Bar
                     dataKey="revenue"
-                    stroke="#635BFF"
-                    strokeWidth={3}
+                    fill="#635BFF"
+                    radius={[6, 6, 0, 0]}
                 />
-
-            </LineChart>
-
+            </BarChart>
         </ResponsiveContainer>
-
     );
-
 }
 
 export default RevenueChart;

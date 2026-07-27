@@ -87,7 +87,10 @@ from backend.crud import (
     handle_payment_webhook,
     retry_failed_payment,
     get_failed_payments,
-    process_refund
+    process_refund,
+    get_dashboard_summary,
+    get_revenue_by_plan,
+    get_subscription_metrics,
 )
 from backend.security import (
     create_access_token, 
@@ -1223,3 +1226,25 @@ def payment_webhook_api(
     if not success:
         raise HTTPException(status_code=404, detail="Webhook processing failed")
     return {"status": "success"}
+
+@app.get("/dashboard/summary", tags=["Dashboard"])
+def dashboard_summary(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_dashboard_summary(db)
+
+@app.get("/dashboard/revenue-by-plan", tags=["Dashboard"])
+def dashboard_revenue_by_plan(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_revenue_by_plan(db)
+
+
+@app.get("/dashboard/subscription-metrics", tags=["Dashboard"])
+def dashboard_subscription_metrics(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_subscription_metrics(db)

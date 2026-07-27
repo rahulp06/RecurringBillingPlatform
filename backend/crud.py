@@ -1779,3 +1779,115 @@ def process_refund(
         "payment_status": payment.status,
         "message": "Refund processed successfully"
     }
+
+from sqlalchemy import func
+
+def get_dashboard_summary(db: Session):
+    total_customers = db.query(func.count(Customer.id)).scalar() or 0
+
+    active_subscriptions = (
+        db.query(func.count(Subscription.id))
+        .filter(Subscription.status == "active")
+        .scalar()
+        or 0
+    )
+
+    cancelled_subscriptions = (
+        db.query(func.count(Subscription.id))
+        .filter(Subscription.status == "cancelled")
+        .scalar()
+        or 0
+    )
+
+    monthly_revenue = (
+        db.query(func.sum(Plan.price))
+        .join(
+            Subscription,
+            Subscription.plan_id == Plan.id
+        )
+        .filter(Subscription.status == "active")
+        .scalar()
+        or 0
+    )
+
+    return {
+        "total_customers": total_customers,
+        "active_subscriptions": active_subscriptions,
+        "cancelled_subscriptions": cancelled_subscriptions,
+        "mrr": float(monthly_revenue),
+    }
+
+def get_revenue_by_plan(db: Session):
+    revenue = (
+        db.query(
+            Plan.name,
+            func.coalesce(func.sum(Plan.price), 0).label("revenue")
+        )
+        .join(
+            Subscription,
+            Subscription.plan_id == Plan.id
+        )
+        .filter(Subscription.status == "active")
+        .group_by(Plan.id, Plan.name)
+        .all()
+    )
+
+    return [
+        {
+            "plan": row.name,
+            "revenue": float(row.revenue)
+        }
+        for row in revenue
+    ]
+
+def get_subscription_metrics(db: Session):
+    active = (
+        db.query(func.count(Subscription.id))
+        .filter(Subscription.status == "active")
+        .scalar()
+        or 0
+    )
+
+    trial = (
+        db.query(func.count(Subscription.id))
+        .filter(Subscription.status == "trial")
+        .scalar()
+        or 0
+    )
+
+    past_due = (
+        db.query(func.count(Subscription.id))
+        .filter(Subscription.status == "past_due")
+        .scalar()
+        or 0
+    )
+
+    cancelled = (
+        db.query(func.count(Subscription.id))
+        .filter(Subscription.status == "cancelled")
+        .scalar()
+        or 0
+    )
+
+    total = active + trial + past_due + cancelled
+
+    churn_rate = (
+        round((cancelled / total) * 100, 2)
+        if total
+        else 0
+    )
+
+    trial_conversion_rate = (
+        round((active / (active + trial)) * 100, 2)
+        if (active + trial)
+        else 0
+    )
+
+    return {
+        "active": active,
+        "trial": trial,
+        "past_due": past_due,
+        "cancelled": cancelled,
+        "churn_rate": churn_rate,
+        "trial_conversion_rate": trial_conversion_rate,
+    }

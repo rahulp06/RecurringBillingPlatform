@@ -1,45 +1,40 @@
 import {
     getCustomers,
     getPlans,
-    getSubscriptions,
     getInvoices,
-    getPayments
+    getPayments,
+    getDashboardSummary,
+    getRevenueByPlan,
+    getSubscriptionMetrics
 } from "./api";
 
 export async function getDashboardData() {
 
     const [
+        summary,
+        revenueByPlan,
+        subscriptionMetrics,
         customers,
         plans,
-        subscriptions,
         invoices,
         payments
     ] = await Promise.all([
-
+        getDashboardSummary(),
+        getRevenueByPlan(),
+        getSubscriptionMetrics(),
         getCustomers(),
-
         getPlans(),
-
-        getSubscriptions(),
-
         getInvoices(),
-
         getPayments()
-
     ]);
 
     return {
-
+        ...summary,
+        revenueByPlan,
+        subscriptionMetrics,
         customers,
-
         plans,
-
-        subscriptions,
-
         invoices,
-
         payments
-
     };
-
 }

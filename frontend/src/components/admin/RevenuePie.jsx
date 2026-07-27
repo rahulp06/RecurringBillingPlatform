@@ -6,117 +6,60 @@ import {
     ResponsiveContainer
 } from "recharts";
 
-import { useEffect, useState } from "react";
-
-import {
-    getPlans,
-    getSubscriptions
-} from "../../services/api";
-
 const COLORS = [
     "#635BFF",
     "#8B5CF6",
     "#C4B5FD",
-    "#10B981",
-    "#F59E0B",
-    "#EF4444"
+    "#10B981"
 ];
 
-function RevenuePie() {
+function RevenuePie({ dashboard }) {
 
-    const [data, setData] = useState([]);
+    const metrics = dashboard?.subscriptionMetrics || {};
 
-    useEffect(() => {
-
-        loadDistribution();
-
-    }, []);
-
-    const loadDistribution = async () => {
-
-        try {
-
-            const [
-                plans,
-                subscriptions
-            ] = await Promise.all([
-
-                getPlans(),
-                getSubscriptions()
-
-            ]);
-
-            const distribution = plans.map(plan => {
-
-                const count =
-                    subscriptions.filter(
-
-                        sub =>
-
-                            sub.plan_id === plan.id
-
-                    ).length;
-
-                return {
-
-                    name: plan.name,
-
-                    value: count
-
-                };
-
-            });
-
-            setData(distribution);
-
-        } catch (err) {
-
-            console.error(err);
-
+    const data = [
+        {
+            name: "Active",
+            value: metrics.active || 0
+        },
+        {
+            name: "Trial",
+            value: metrics.trial || 0
+        },
+        {
+            name: "Past Due",
+            value: metrics.past_due || 0
+        },
+        {
+            name: "Cancelled",
+            value: metrics.cancelled || 0
         }
-
-    };
+    ];
 
     return (
-
         <ResponsiveContainer
             width="100%"
             height={320}
         >
-
             <PieChart>
-
                 <Pie
                     data={data}
                     dataKey="value"
                     outerRadius={110}
                     label
                 >
-
-                    {data.map((entry, index) => (
-
+                    {data.map((_, index) => (
                         <Cell
                             key={index}
-                            fill={
-                                COLORS[
-                                    index %
-                                    COLORS.length
-                                ]
-                            }
+                            fill={COLORS[index]}
                         />
-
                     ))}
-
                 </Pie>
 
                 <Tooltip />
-
             </PieChart>
-
         </ResponsiveContainer>
-
     );
-
 }
 
 export default RevenuePie;

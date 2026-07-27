@@ -605,3 +605,24 @@ export const getMyPlanHistory = async () =>
         headers: headers(false)
     })
 ).json();
+
+export const getDashboardSummary = async () =>
+(
+    await fetch(`${BASE_URL}/dashboard/summary`, {
+        headers: headers(false)
+    })
+).json();
+
+export const getRevenueByPlan = async () =>
+(
+    await fetch(`${BASE_URL}/dashboard/revenue-by-plan`, {
+        headers: headers(false)
+    })
+).json();
+
+export const getSubscriptionMetrics = async () =>
+(
+    await fetch(`${BASE_URL}/dashboard/subscription-metrics`, {
+        headers: headers(false)
+    })
+).json();
