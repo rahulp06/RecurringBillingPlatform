@@ -7,7 +7,8 @@ import {
     FaFileInvoiceDollar,
     FaClipboardList,
     FaCog,
-    FaSignOutAlt
+    FaSignOutAlt,
+    FaHistory
 } from "react-icons/fa";
 
 import { NavLink, useNavigate } from "react-router-dom";
@@ -162,6 +163,7 @@ function Sidebar() {
                             Payments
 
                         </NavLink>
+
 
                     </div>
 

@@ -626,3 +626,15 @@ export const getSubscriptionMetrics = async () =>
         headers: headers(false)
     })
 ).json();
+
+export async function getRefundHistory() {
+    const response = await fetch(`${BASE_URL}/refunds`, {
+        headers: headers(false)
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to fetch refund history");
+    }
+
+    return response.json();
+}

@@ -1109,9 +1109,47 @@ def create_invoice(
     return db_invoice
 
 
-def get_invoices(db: Session):
+def get_invoices(
+    db: Session,
+    invoice_number: str | None = None,
+    customer: str | None = None,
+    status: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None
+):
+    query = (
+        db.query(Invoice)
+        .join(Customer, Customer.id == Invoice.customer_id)
+    )
 
-    return db.query(Invoice).all()
+    if invoice_number:
+        query = query.filter(
+            Invoice.invoice_number.ilike(f"%{invoice_number}%")
+        )
+
+    if customer:
+        query = query.filter(
+            Customer.name.ilike(f"%{customer}%")
+        )
+
+    if status:
+        query = query.filter(
+            Invoice.status == status
+        )
+
+    if start_date:
+        query = query.filter(
+            Invoice.invoice_date >= start_date
+        )
+
+    if end_date:
+        query = query.filter(
+            Invoice.invoice_date <= end_date
+        )
+
+    return query.order_by(
+        Invoice.invoice_date.desc()
+    ).all()
 
 
 def get_invoice(
@@ -1891,3 +1929,42 @@ def get_subscription_metrics(db: Session):
         "churn_rate": churn_rate,
         "trial_conversion_rate": trial_conversion_rate,
     }
+
+def get_refund_history(db: Session):
+    refunds = (
+        db.query(Payment)
+        .filter(Payment.refunded_amount > 0)
+        .order_by(Payment.updated_at.desc())
+        .all()
+    )
+
+    history = []
+
+    for payment in refunds:
+        invoice = (
+            db.query(Invoice)
+            .filter(Invoice.id == payment.invoice_id)
+            .first()
+        )
+
+        customer = None
+
+        if invoice:
+            customer = (
+                db.query(Customer)
+                .filter(Customer.id == invoice.customer_id)
+                .first()
+            )
+
+        history.append({
+            "payment_id": payment.id,
+            "refund_id": f"RF{payment.id:04d}",
+            "customer": customer.name if customer else "Unknown",
+            "payment_reference": payment.payment_reference,
+            "refunded_amount": payment.refunded_amount,
+            "refund_status": payment.refund_status,
+            "payment_status": payment.status,
+            "refund_date": payment.updated_at
+        })
+
+    return history

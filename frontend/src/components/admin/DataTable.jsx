@@ -23,30 +23,58 @@ function DataTable({
     onProcessPayment,
     onRetry,
     onRefund,
-    searchable = true
+    searchable = true,
+    pageSize = 10
 }){
 
     const [search,setSearch]=useState("");
+    const [currentPage,setCurrentPage]=useState(1);
+
+    const RECORDS_PER_PAGE = pageSize ?? 10;
 
     const filteredData=useMemo(()=>{
 
-        if(!search) return data;
+    if(!search) return data;
 
-        return data.filter((row)=>
+    return data.filter((row)=>
 
-            Object.values(row).some((value)=>
+        Object.values(row).some((value)=>
 
-                String(value)
+            String(value)
+            .toLowerCase()
+            .includes(search.toLowerCase())
 
-                .toLowerCase()
+        )
 
-                .includes(search.toLowerCase())
-
-            )
-
-        );
+    );
 
     },[search,data]);
+
+    const totalPages=Math.max(
+        1,
+        Math.ceil(filteredData.length/RECORDS_PER_PAGE)
+    );
+
+    const paginatedData=useMemo(()=>{
+
+        const start=(currentPage-1)*RECORDS_PER_PAGE;
+
+        return filteredData.slice(
+            start,
+            start+RECORDS_PER_PAGE
+        );
+
+    },[filteredData,currentPage]);
+
+    const startRecord=
+        filteredData.length===0
+        ?0
+        :(currentPage-1)*RECORDS_PER_PAGE+1;
+
+    const endRecord=Math.min(
+        currentPage*RECORDS_PER_PAGE,
+        filteredData.length
+    );
 
     return(
 
@@ -86,7 +114,13 @@ function DataTable({
 
                             value={search}
 
-                            onChange={(e)=>setSearch(e.target.value)}
+                            onChange={(e)=>{
+
+                                setSearch(e.target.value);
+
+                                setCurrentPage(1);
+
+                            }}
 
                         />
 
@@ -118,7 +152,7 @@ function DataTable({
 
                 <tbody>
 
-                    {filteredData.map((row)=>(
+                    {paginatedData.map((row)=>(
 
                         <tr key={row.id}>
 
@@ -345,16 +379,61 @@ function DataTable({
 
                 <span>
 
-                    {filteredData.length} Records
+                    Showing {startRecord}-{endRecord} of {filteredData.length} records • Page {currentPage} of {totalPages}
 
                 </span>
 
                 <div className="pagination">
 
-                    <button className="page-btn">
+                    <button
+                        className={`page-btn ${currentPage===1?"disabled":""}`}
+                        disabled={currentPage===1}
+                        onClick={()=>
+                            setCurrentPage(p=>p-1)
+                        }
+                    >
+                        Prev
+                    </button>
 
-                        1
+                    {
 
+                        Array.from(
+                            {length:totalPages},
+                            (_,i)=>i+1
+                        ).map(page=>(
+
+                            <button
+
+                                key={page}
+
+                                className={`page-btn ${
+                                    currentPage===page
+                                    ?"active"
+                                    :""
+                                }`}
+
+                                onClick={()=>
+                                    setCurrentPage(page)
+                                }
+
+                            >
+
+                                {page}
+
+                            </button>
+
+                        ))
+
+                    }
+
+                    <button
+                        className={`page-btn ${currentPage===totalPages?"disabled":""}`}
+                        disabled={currentPage===totalPages}
+                        onClick={()=>
+                            setCurrentPage(p=>p+1)
+                        }
+                    >
+                        Next
                     </button>
 
                 </div>

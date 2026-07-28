@@ -19,6 +19,7 @@ import {
     updatePayment,
     deletePayment,
     getFailedPayments,
+    getRefundHistory
 } from "../../services/api";
 
 function Payments() {
@@ -37,6 +38,7 @@ function Payments() {
     const [selectedPayment, setSelectedPayment] = useState(null);
 
     const [failedPayments, setFailedPayments] = useState([]);
+    const [refundHistory, setRefundHistory] = useState([]);
 
     useEffect(() => {
 
@@ -57,7 +59,8 @@ function Payments() {
                 customerData,
                 subscriptionData,
                 planData,
-                failedPaymentData
+                failedPaymentData,
+                refundData
             ] = await Promise.all([
 
                 getPayments(),
@@ -65,8 +68,8 @@ function Payments() {
                 getCustomers(),
                 getSubscriptions(),
                 getPlans(),
-                getFailedPayments()
-
+                getFailedPayments(),
+                getRefundHistory()
             ]);
 
             setInvoices(invoiceData);
@@ -169,7 +172,21 @@ function Payments() {
 
             setPayments(formatted);
             setFailedPayments(failedPaymentData);
-
+            setRefundHistory(
+                refundData.map(item => ({
+                    id: item.payment_id,
+                    refund_id: item.refund_id,
+                    customer: item.customer,
+                    amount: `₹${item.refunded_amount}`,
+                    status:
+                        item.refund_status === "completed"
+                            ? "Completed"
+                            : item.refund_status === "partial"
+                            ? "Partially Refunded"
+                            : "Failed",
+                    date: new Date(item.refund_date).toLocaleString()
+                }))
+            );
         }
 
         finally {
@@ -334,39 +351,113 @@ function Payments() {
 
                         :
 
-                        <DataTable
+                        <>
+                            <DataTable
+                                pageSize={10}
+                                title="Payments"
+                                subtitle="Monitor successful and pending customer payments."
+                                columns={[
+                                    "Payment Reference",
+                                    "Customer",
+                                    "Invoice",
+                                    "Amount",
+                                    "Payment Method",
+                                    "Status",
+                                    "Actions"
+                                ]}
+                                data={payments}
+                                failedPayments={failedPayments}
+                                onRetry={handleRetry}
+                                onRefund={handleRefund}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                            />
 
-                            title="Payments"
+                            <div style={{ marginTop: "30px" }}>
+                            {
+                                failedPayments.length===0?
 
-                            subtitle="Monitor successful and pending customer payments."
+                                <EmptyState
+                                    title="No Failed Payments"
+                                    message="All recent payments were processed successfully."
+                                />
 
-                            columns={[
+                                :
+                            <DataTable
+                                pageSize={5}
+                                title="Failed Payment Queue"
+                                subtitle="Payments awaiting retry."
 
-                                "Payment Reference",
+                                columns={[
+                                    "Customer",
+                                    "Amount",
+                                    "Failure Reason",
+                                    "Retry Count",
+                                    "Next Retry Date",
+                                    "Status",
+                                    "Actions"
+                                ]}
 
-                                "Customer",
+                                data={failedPayments.map(payment => ({
 
-                                "Invoice",
+                                    id: payment.id,
 
-                                "Amount",
+                                    customer: payment.customer_name,
 
-                                "Payment Method",
+                                    amount: new Intl.NumberFormat(
+                                        "en-IN",
+                                        {
+                                            style: "currency",
+                                            currency: "INR"
+                                        }
+                                    ).format(payment.amount),
 
-                                "Status",
+                                    failure_reason:
+                                        payment.failure_reason ?? "-",
 
-                                "Actions"
+                                    retry_count:
+                                        payment.retry_count,
 
-                            ]}
+                                    next_retry_date:
+                                        payment.next_retry_date
+                                            ? new Date(
+                                                payment.next_retry_date
+                                            ).toLocaleString()
+                                            : "-",
 
-                            data={payments}
-                            failedPayments={failedPayments}
-                            onRetry={handleRetry}
-                            onRefund={handleRefund}
-                            onEdit={handleEdit}
+                                    status: payment.status
 
-                            onDelete={handleDelete}
+                                }))}
 
-                        />
+                                onRetry={handleRetry}
+
+                                searchable={false}
+
+                            />
+                            }   
+
+                            </div>
+
+                            <div style={{ marginTop: "30px" }}>
+
+                                <DataTable
+                                    pageSize={5}
+                                    title="Refund History"
+                                    subtitle="Processed customer refunds."
+                                    columns={[
+                                        "Refund ID",
+                                        "Customer",
+                                        "Amount",
+                                        "Status",
+                                        "Date"
+                                    ]}
+                                    data={refundHistory}
+                                    searchable={false}
+                                />
+
+                            </div>
+                        </>
+                        
 
                     }
 

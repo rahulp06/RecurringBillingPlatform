@@ -1,3 +1,4 @@
+from datetime import date
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -91,6 +92,7 @@ from backend.crud import (
     get_dashboard_summary,
     get_revenue_by_plan,
     get_subscription_metrics,
+    get_refund_history,
 )
 from backend.security import (
     create_access_token, 
@@ -881,12 +883,22 @@ def add_invoice(
 
 @app.get("/invoices", tags=["Invoices"])
 def read_invoices(
+    invoice_number: str | None = None,
+    customer: str | None = None,
+    status: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
     db: Session = Depends(get_db),
-    admin: Customer = Depends(require_admin)
+    current_user: Customer = Depends(get_current_user)
 ):
-
-    invoices = get_invoices(db)
-    return [enrich_invoice(db, inv) for inv in invoices]
+    return get_invoices(
+        db,
+        invoice_number,
+        customer,
+        status,
+        start_date,
+        end_date
+    )
 
 
 @app.get("/invoices/{invoice_id}", tags=["Invoices"])
@@ -1026,6 +1038,12 @@ def add_payment(
         payment
     )
 
+@app.get("/refunds", tags=["Payments"])
+def refund_history(
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_refund_history(db)
 
 @app.get("/payments", tags=["Payments"])
 def read_payments(
@@ -1248,3 +1266,4 @@ def dashboard_subscription_metrics(
     admin: Customer = Depends(require_admin)
 ):
     return get_subscription_metrics(db)
+
