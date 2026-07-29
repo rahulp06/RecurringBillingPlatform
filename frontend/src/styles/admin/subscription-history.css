@@ -1,0 +1,50 @@
+.history-section{
+    margin-top:24px;
+    background:#fff;
+    border-radius:16px;
+    padding:24px;
+    box-shadow:0 4px 12px rgba(0,0,0,.08);
+}
+
+.history-timeline{
+    position:relative;
+    margin-top:20px;
+    padding-left:30px;
+}
+
+.history-timeline::before{
+    content:"";
+    position:absolute;
+    left:10px;
+    top:0;
+    bottom:0;
+    width:2px;
+    background:#d1d5db;
+}
+
+.history-item{
+    position:relative;
+    margin-bottom:24px;
+}
+
+.history-dot{
+    position:absolute;
+    left:-28px;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:#0ea5e9;
+}
+
+.history-content h4{
+    margin:0;
+}
+
+.history-content p{
+    margin:6px 0;
+    color:#64748b;
+}
+
+.history-content small{
+    color:#94a3b8;
+}

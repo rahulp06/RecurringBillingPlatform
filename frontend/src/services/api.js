@@ -638,3 +638,24 @@ export async function getRefundHistory() {
 
     return response.json();
 }
+
+export const getCustomerActivitySummary = async (customerId) =>
+(
+    await fetch(`${BASE_URL}/customers/${customerId}/activity-summary`, {
+        headers: headers(false)
+    })
+).json();
+
+export const getCustomerBillingHistory = async (customerId) =>
+(
+    await fetch(`${BASE_URL}/customers/${customerId}/billing-history`, {
+        headers: headers(false)
+    })
+).json();
+
+export const getSubscriptionHistory = async (subscriptionId) =>
+(
+    await fetch(`${BASE_URL}/subscriptions/${subscriptionId}/history`, {
+        headers: headers(false)
+    })
+).json();

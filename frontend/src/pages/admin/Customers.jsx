@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../../components/admin/AdminSidebar";
 import Topbar from "../../components/admin/AdminTopbar";
 import DataTable from "../../components/admin/DataTable";
@@ -19,7 +19,7 @@ function Customers() {
 
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
-
+    const navigate = useNavigate();
     const [openModal, setOpenModal] = useState(false);
     const [editCustomer, setEditCustomer] = useState(null);
 
@@ -234,9 +234,13 @@ function Customers() {
 
                                     data={customers}
 
+                                    onView={(customer) =>
+                                        navigate(`/admin/customers/${customer.id}`)
+                                    }
                                     onEdit={handleEdit}
 
                                     onDelete={handleDelete}
+
 
                                 />
 

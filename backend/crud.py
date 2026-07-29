@@ -1968,3 +1968,260 @@ def get_refund_history(db: Session):
         })
 
     return history
+
+def get_customer_billing_history(db: Session, customer_id: int):
+    customer = (
+        db.query(Customer)
+        .filter(Customer.id == customer_id)
+        .first()
+    )
+
+    if customer is None:
+        raise ValueError("Customer not found")
+
+    history = []
+
+    subscriptions = (
+        db.query(Subscription)
+        .filter(Subscription.customer_id == customer_id)
+        .all()
+    )
+
+    subscription_ids = [s.id for s in subscriptions]
+
+    invoices = (
+        db.query(Invoice)
+        .filter(Invoice.customer_id == customer_id)
+        .all()
+    )
+
+    invoice_map = {i.id: i for i in invoices}
+    invoice_ids = list(invoice_map.keys())
+
+    payments = (
+        db.query(Payment)
+        .filter(Payment.invoice_id.in_(invoice_ids))
+        .all()
+        if invoice_ids else []
+    )
+
+    
+
+    print(f"Subscriptions found: {len(subscriptions)}")
+
+    for sub in subscriptions:
+        print(sub.id, sub.start_date, sub.plan_id, sub.status)
+
+    for invoice in invoices:
+        history.append({
+            "date": datetime.combine(invoice.invoice_date, datetime.min.time()),
+            "entity": "Invoice",
+            "event": "Invoice Generated",
+            "details": invoice.invoice_number
+        })
+
+    for payment in payments:
+        history.append({
+            "date": payment.payment_date,
+            "entity": "Payment",
+            "event": (
+                "Payment Successful"
+                if payment.status.lower() == "paid"
+                else payment.status.replace("_", " ").title()
+            ),
+            "details": f"Transaction: {payment.payment_reference}"
+        })
+
+    audit_logs = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "subscription",
+            AuditLog.entity_id.in_(subscription_ids)
+        )
+        .all()
+        if subscription_ids else []
+    )
+
+    for log in audit_logs:
+        if log.action != "Subscription Created":
+            history.append({
+                "date": log.created_at,
+                "entity": "Audit",
+                "event": log.action,
+                "details": (
+                    f"{log.old_value} → {log.new_value}"
+                    if log.old_value or log.new_value
+                    else log.action
+                )
+            })
+
+    history.sort(
+    key=lambda x: (
+        datetime.combine(x["date"], datetime.min.time())
+        if isinstance(x["date"], date) and not isinstance(x["date"], datetime)
+        else x["date"]
+    ),
+    reverse=True
+)
+
+    return history
+
+def get_customer_activity_summary(db: Session, customer_id: int):
+    customer = (
+        db.query(Customer)
+        .filter(Customer.id == customer_id)
+        .first()
+    )
+
+    if customer is None:
+        raise ValueError("Customer not found")
+
+    invoices = (
+        db.query(Invoice)
+        .filter(Invoice.customer_id == customer_id)
+        .all()
+    )
+
+    invoice_ids = [invoice.id for invoice in invoices]
+
+    payments = (
+        db.query(Payment)
+        .filter(Payment.invoice_id.in_(invoice_ids))
+        .all()
+        if invoice_ids else []
+    )
+
+    total_paid = sum(
+        payment.amount
+        for payment in payments
+        if payment.status == "paid"
+    )
+
+    return {
+        "total_subscriptions": db.query(Subscription)
+            .filter(Subscription.customer_id == customer_id)
+            .count(),
+
+        "total_invoices": len(invoices),
+
+        "paid_invoices": sum(
+            invoice.status == "paid"
+            for invoice in invoices
+        ),
+
+        "pending_invoices": sum(
+            invoice.status == "unpaid"
+            for invoice in invoices
+        ),
+
+        "failed_payments": sum(
+            payment.status == "failed"
+            for payment in payments
+        ),
+
+        "refunds": sum(
+            payment.refund_status != "none"
+            for payment in payments
+        ),
+
+        "total_paid_amount": round(total_paid, 2)
+    }
+
+def get_subscription_history(db: Session, subscription_id: int):
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.id == subscription_id)
+        .first()
+    )
+
+    if subscription is None:
+        raise ValueError("Subscription not found")
+
+    history = []
+
+    plan = (
+        db.query(Plan)
+        .filter(Plan.id == subscription.plan_id)
+        .first()
+    )
+
+    logs = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "subscription",
+            AuditLog.entity_id == subscription_id
+        )
+        .order_by(AuditLog.created_at)
+        .all()
+    )
+
+    has_creation_log = any(
+        log.action == "Subscription Created"
+        for log in logs
+    )
+
+    if not has_creation_log:
+        history.append({
+            "date": datetime.combine(
+                subscription.start_date,
+                datetime.min.time()
+            ),
+            "status": "Subscription Created",
+            "details": plan.name if plan else ""
+        })
+
+    for log in logs:
+        history.append({
+            "date": log.created_at,
+            "status": log.action,
+            "details": (
+                plan.name if log.action == "Subscription Created" and plan
+                else f"{log.old_value} → {log.new_value}"
+                if log.old_value or log.new_value
+                else ""
+            )
+        })
+
+        print(f"Total logs: {len(logs)}")
+
+        for log in logs:
+            print(
+                log.id,
+                log.action,
+                log.old_value,
+                log.new_value,
+                log.created_at
+            )
+
+    history.sort(key=lambda x: x["date"])
+
+    return history
+
+def get_audit_logs(
+    db: Session,
+    entity_type: str = None,
+    performed_by: str = None,
+    action: str = None
+):
+    query = db.query(AuditLog)
+
+    if entity_type:
+        query = query.filter(
+            AuditLog.entity_type == entity_type
+        )
+
+    if performed_by:
+        query = query.filter(
+            AuditLog.performed_by == performed_by
+        )
+
+    if action:
+        query = query.filter(
+            AuditLog.action.ilike(f"%{action}%")
+        )
+
+    return (
+        query
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )

@@ -16,6 +16,7 @@ import MySubscription from "./pages/customer/MySubscription";
 import BillingHistory from "./pages/customer/BillingHistory";
 import Profile from "./pages/customer/Profile";
 import Plans from "./pages/admin/Plans";
+import CustomerDetails from "./pages/admin/CustomerDetails";
 function App() {
   return (
     <Routes>
@@ -54,6 +55,10 @@ function App() {
           path="/admin/customers"
           element={<Customers />}
       />
+      <Route
+            path="/admin/customers/:id"
+            element={<CustomerDetails />}
+        />
 
       <Route
 

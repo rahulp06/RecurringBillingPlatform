@@ -93,6 +93,10 @@ from backend.crud import (
     get_revenue_by_plan,
     get_subscription_metrics,
     get_refund_history,
+    get_customer_billing_history,
+    get_customer_activity_summary,
+    get_subscription_history,
+    get_audit_logs,
 )
 from backend.security import (
     create_access_token, 
@@ -445,6 +449,44 @@ def remove_customer(
 
     return deleted
 
+@app.get(
+    "/customers/{customer_id}/billing-history",
+    tags=["Customers"]
+)
+def customer_billing_history(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return get_customer_billing_history(db, customer_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
+@app.get(
+    "/customers/{customer_id}/activity-summary",
+    tags=["Customers"]
+)
+def customer_activity_summary(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return get_customer_activity_summary(
+            db,
+            customer_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
 @app.post("/subscriptions", tags=["Subscriptions"])
 def add_subscription(
     subscription: SubscriptionCreate,
@@ -736,6 +778,28 @@ def customer_cancel_subscription(
             status_code=400,
             detail=str(e)
         )
+
+@app.get(
+    "/subscriptions/{subscription_id}/history",
+    tags=["Subscriptions"]
+)
+def subscription_history(
+    subscription_id: int,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    try:
+        return get_subscription_history(
+            db,
+            subscription_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
 # ==========================================================
 # BILLING CYCLE CRUD
 # ==========================================================
@@ -1218,6 +1282,24 @@ def remove_audit_log(
         )
 
     return deleted
+
+@app.get(
+    "/audit-logs",
+    tags=["Audit Logs"]
+)
+def audit_logs(
+    entity_type: str = None,
+    performed_by: str = None,
+    action: str = None,
+    db: Session = Depends(get_db),
+    admin: Customer = Depends(require_admin)
+):
+    return get_audit_logs(
+        db,
+        entity_type,
+        performed_by,
+        action
+    )
 
 # ==========================================================
 # GATEWAY & WEBHOOK ENDPOINTS
